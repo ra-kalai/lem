@@ -19,6 +19,7 @@
 local setmetatable = setmetatable
 local tonumber = tonumber
 local concat = table.concat
+local format = string.format
 
 local io    = require 'lem.io'
 require 'lem.http'
@@ -97,8 +98,7 @@ function M.new()
 	}, Client)
 end
 
-local req_get = "GET %s HTTP/1.1\r\nHost: %s\r\nConnection: keep-alive\r\n\r\n"
---local req_get = "GET %s HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n"
+local req_get = "GET %s HTTP/1.1\r\nHost: %s\r\n%s\r\n"
 
 local function close(self)
 	local c = self.conn
@@ -116,16 +116,29 @@ local function fail(self, err)
 	return nil, err
 end
 
-function Client:get(url)
-	local proto, domain, uri = url:match('([a-zA-Z0-9]+)://([a-zA-Z0-9.]+)(/.*)')
+function Client:get(url, extra_headers)
+	extra_headers = extra_headers or {
+    Connection = 'keep-alive'
+--  Connection = 'close'
+  }
+
+	local proto, domain_and_port, uri = url:match('([a-zA-Z0-9]+)://([a-zA-Z0-9.:]+)(/.*)')
 	if not proto then
 		error('Invalid URL', 2)
 	end
 
+	local rope = {}
+
+	if extra_headers then
+		for k, v in pairs(extra_headers) do
+			rope[#rope+1] = format("%s: %s\r\n", k, v)
+		end
+	end
+
 	local c, err
-	local req = req_get:format(uri, domain)
+	local req = req_get:format(uri, domain_and_port, concat(rope))
 	local res
-	if proto == self.proto and domain == self.domain then
+	if proto == self.proto and (domain_and_port == self.domain_and_port) then
 		c = self.conn
 		if c:write(req) then
 			res = c:read('HTTPResponse')
@@ -138,14 +151,24 @@ function Client:get(url)
 			c:close()
 		end
 
+		local domain
+		local specified_port = domain_and_port:match(':([0-9]+)')
+
+		if specified_port then
+			specified_port = tostring(specified_port)
+			domain = domain_and_port:gsub(':'..specified_port, '')
+		else
+			domain = domain_and_port
+		end
+
 		if proto == 'http' then
-			c, err = io.tcp.connect(domain, '80')
+			c, err = io.tcp.connect(domain, specified_port or '80')
 		elseif proto == 'https' then
 			local ssl = self.ssl
 			if not ssl then
 				error('No ssl context defined', 2)
 			end
-			c, err = ssl:connect(domain, '443')
+			c, err = ssl:connect(domain, specified_port or '443')
 		else
 			error('Unknown protocol', 2)
 		end
@@ -163,7 +186,7 @@ function Client:get(url)
 	setmetatable(res, Response)
 
 	self.proto = proto
-	self.domain = domain
+	self.domain_and_port = domain_and_port
 	self.conn = c
 	return res
 end

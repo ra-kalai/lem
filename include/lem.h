@@ -72,6 +72,7 @@ void lem_queue(lua_State *T, int nargs);
 void lem_exit(int status);
 void lem_async_run(struct lem_async *a);
 void lem_async_config(int delay, int min, int max);
+lua_State* lem_get_global_lua_state();
 
 static inline void
 lem_async_do(struct lem_async *a,
