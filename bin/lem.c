@@ -387,6 +387,7 @@ main(int argc, char *argv[])
 		goto error;
 
 	/* start the mainloop */
+	lem_debug("event loop starting");
 	ev_loop(LEM_ 0);
 	lem_debug("event loop exited");
 

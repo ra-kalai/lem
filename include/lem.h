@@ -19,7 +19,10 @@
 #ifndef _LEM_H
 #define _LEM_H
 
+/* set up libev config before including it */
+#include <ev-config.h>
 #include <ev.h>
+
 #include <lua.h>
 #include <lauxlib.h>
 

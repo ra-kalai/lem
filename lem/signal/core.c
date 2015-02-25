@@ -63,6 +63,7 @@ signal_os_handler(EV_P_ struct ev_signal *w, int revents)
 	lua_State *S;
 
 	(void)revents;
+	(void)EV_A;
 
 	S = lem_newthread();
 	lua_pushlightuserdata(S, &sigmap);
@@ -96,7 +97,10 @@ signal_os_watch(lua_State *T, int sig)
 	s = lem_xmalloc(sizeof(struct sigwatcher));
 
 	signal_watcher_init(s, sig);
+#pragma GCC diagnostic push                                                 
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
 	ev_set_priority(&s->w, EV_MAXPRI);
+#pragma GCC diagnostic pop                                                 
 	ev_signal_start(LEM_ &s->w);
 	ev_unref(LEM); /* watcher shouldn't keep loop alive */
 
@@ -166,6 +170,7 @@ signal_child_handler(EV_P_ struct ev_child *w, int revents)
 	int status;
 
 	(void)revents;
+	(void)EV_A;
 
 	S = lem_newthread();
 	lua_pushlightuserdata(S, &sigmap);

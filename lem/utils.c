@@ -54,6 +54,7 @@ sleep_handler(EV_P_ struct ev_timer *w, int revents)
 	lua_State *T = w->data;
 
 	(void)revents;
+	(void)EV_A;
 
 	/* return nil, "timeout" */
 	lem_queue(T, 2);

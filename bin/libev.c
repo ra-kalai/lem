@@ -17,4 +17,5 @@
  */
 
 #include "../libev/ev-config.h"
+#include "../libev/ev.h"
 #include "../libev/ev.c"

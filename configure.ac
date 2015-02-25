@@ -113,29 +113,38 @@ AC_CHECK_FUNC([nanosleep],
 
 AC_CHECK_FUNCS([poll select epoll_ctl kqueue])
 
-AS_IF([test "x$ac_cv_func_epoll_ctl" = 'xyes'], [
-  AC_DEFINE([EV_USE_SELECT], 0)
-  AC_DEFINE([EV_USE_POLL], 0)
-  AC_DEFINE([EV_USE_EPOLL], 1)
-  AC_DEFINE([EV_USE_KQUEUE], 0)
-], [AS_IF([test "x$ac_cv_func_kqueue" = 'xyes'], [
-  AC_DEFINE([EV_USE_SELECT], 0)
-  AC_DEFINE([EV_USE_POLL], 0)
-  AC_DEFINE([EV_USE_EPOLL], 0)
-  AC_DEFINE([EV_USE_KQUEUE], 1)
-], [AS_IF([test "x$ac_cv_func_select" = 'xyes'], [
-  AC_DEFINE([EV_USE_SELECT], 1)
-  AC_DEFINE([EV_USE_POLL], 0)
-  AC_DEFINE([EV_USE_EPOLL], 0)
-  AC_DEFINE([EV_USE_KQUEUE], 0)
-], [AS_IF([test "x$ac_cv_func_poll" = 'xyes'], [
-  AC_DEFINE([EV_USE_SELECT], 0)
+AS_IF(
+[test "x$ac_cv_func_poll" = 'xyes'], [
   AC_DEFINE([EV_USE_POLL], 1)
-  AC_DEFINE([EV_USE_EPOLL], 0)
+  AC_DEFINE([EV_USE_SELECT], 0)
   AC_DEFINE([EV_USE_KQUEUE], 0)
+  AC_DEFINE([EV_USE_EPOLL], 0)
+], [AS_IF([test "x$ac_cv_func_select" = 'xyes'], [
+  AC_DEFINE([EV_USE_POLL], 0)
+  AC_DEFINE([EV_USE_SELECT], 1)
+  AC_DEFINE([EV_USE_KQUEUE], 0)
+  AC_DEFINE([EV_USE_EPOLL], 0)
+], [AS_IF([test "x$ac_cv_func_kqueue" = 'xyes'], [
+  AC_DEFINE([EV_USE_POLL], 0)
+  AC_DEFINE([EV_USE_SELECT], 0)
+  AC_DEFINE([EV_USE_KQUEUE], 1)
+  AC_DEFINE([EV_USE_EPOLL], 0)
+], [AS_IF([test "x$ac_cv_func_epoll_ctl" = 'xyes'], [
+  AC_DEFINE([EV_USE_POLL], 0)
+  AC_DEFINE([EV_USE_SELECT], 0)
+  AC_DEFINE([EV_USE_KQUEUE], 0)
+  AC_DEFINE([EV_USE_EPOLL], 1)
 ], [
-  AC_MSG_ERROR([neither poll or select found])
+  AC_MSG_ERROR([neither kqueue nor epoll nor poll nor select were found])
 ])])])])
+
+AS_IF([test "x$ac_cv_func_epoll_ctl" = 'xyes'], [
+  AC_DEFINE([EV_USE_EPOLL], 1)
+])
+
+AS_IF([test "x$ac_cv_func_kqueue" = 'xyes'], [
+  AC_DEFINE([EV_USE_KQUEUE], 1)
+])
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

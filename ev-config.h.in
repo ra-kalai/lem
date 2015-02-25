@@ -16,6 +16,9 @@
  * License along with LEM.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef _LEM_EV_CONFIG_H
+#define _LEM_EV_CONFIG_H
+
 #define EV_STANDALONE 1
 #undef EV_USE_NANOSLEEP
 #undef EV_USE_EVENTFD
@@ -27,7 +30,7 @@
 
 #define EV_USE_PORT 0
 
-#define EV_MULTIPLICITY 0
+#define EV_MULTIPLICITY 1
 
 #define EV_PERIODIC_ENABLE 0
 #define EV_IDLE_ENABLE 1
@@ -40,5 +43,7 @@
 #define EV_ASYNC_ENABLE 1
 #define EV_CHILD_ENABLE 1
 
-#define EV_MINPRI 0
-#define EV_MAXPRI 0
+#define EV_MINPRI -1
+#define EV_MAXPRI 1
+
+#endif
