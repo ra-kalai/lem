@@ -2141,7 +2141,7 @@ ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $
 ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
-builtin_lua_version='5.2'
+builtin_lua_version='5.3'
 
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
@@ -4159,6 +4159,8 @@ done
 
 case "x$with_lua" in #(
   xbuiltin) :
+     ;; #(
+  xbuiltin53) :
      ;; #(
   xcheck) :
 

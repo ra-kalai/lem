@@ -49,4 +49,5 @@
 #include "../lua/loslib.c"
 #include "../lua/lstrlib.c"
 #include "../lua/ltablib.c"
+#include "../lua/lutf8lib.c"
 #include "../lua/linit.c"

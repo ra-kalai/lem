@@ -188,6 +188,7 @@ function Client:get(url, extra_headers)
 	self.proto = proto
 	self.domain_and_port = domain_and_port
 	self.conn = c
+
 	return res
 end
 

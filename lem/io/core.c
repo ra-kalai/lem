@@ -347,7 +347,7 @@ io_fromfd_reap(struct lem_async *a)
 static int
 io_fromfd(lua_State *T)
 {
-	int fd = luaL_checkint(T, 1);
+	int fd = luaL_checkinteger(T, 1);
 	struct fromfd *ff;
 
 	if (fd < 0)
