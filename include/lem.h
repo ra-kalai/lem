@@ -87,4 +87,8 @@ lem_async_do(struct lem_async *a,
 	lem_async_run(a);
 }
 
+#if LUA_VERSION_NUM >= 502
+  #define lua_objlen(a,b) lua_rawlen(a,b)
+#endif
+
 #endif

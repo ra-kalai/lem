@@ -727,6 +727,14 @@ luaopen_lem_io_core(lua_State *L)
 	lua_getfield(L, -2, "Server"); /* upvalue 1 = Server */
 	lua_pushcclosure(L, unix_listen, 1);
 	lua_setfield(L, -2, "listen");
+
+	/* insert the unix.passfd_ function */
+	lua_pushcfunction(L, unix_passfd_send);
+	lua_setfield(L, -2, "passfd_send");
+
+	lua_pushcfunction(L, unix_passfd_recv);
+	lua_setfield(L, -2, "passfd_recv");
+
 	/* insert the unix table */
 	lua_setfield(L, -2, "unix");
 
