@@ -565,6 +565,15 @@ push_stdstream(lua_State *L, int fd)
 	s->open = 2;
 }
 
+static int
+io_set_collect_interval(lua_State *T)
+{
+	lua_Number v;
+	v = luaL_checknumber(T, 1);
+	ev_set_io_collect_interval(LEM_ v);
+	return 1;
+}
+
 int
 luaopen_lem_io_core(lua_State *L)
 {
@@ -579,6 +588,9 @@ luaopen_lem_io_core(lua_State *L)
 	/* mt.__gc = <file_gc> */
 	lua_pushcfunction(L, file_gc);
 	lua_setfield(L, -2, "__gc");
+	/* mt.kind = <file> */
+	lua_pushstring(L, "file");
+	lua_setfield(L, -2, "kind");
 	/* mt.closed = <file_closed> */
 	lua_pushcfunction(L, file_closed);
 	lua_setfield(L, -2, "closed");
@@ -611,6 +623,9 @@ luaopen_lem_io_core(lua_State *L)
 	/* mt.__gc = <stream_gc> */
 	lua_pushcfunction(L, stream_gc);
 	lua_setfield(L, -2, "__gc");
+	/* mt.kind = <stream> */
+	lua_pushstring(L, "stream");
+	lua_setfield(L, -2, "kind");
 	/* mt.closed = <stream_closed> */
 	lua_pushcfunction(L, stream_closed);
 	lua_setfield(L, -2, "closed");
@@ -657,6 +672,9 @@ luaopen_lem_io_core(lua_State *L)
 	/* mt.__gc = <server_close> */
 	lua_pushcfunction(L, server_close);
 	lua_setfield(L, -2, "__gc");
+	/* mt.kind = <server> */
+	lua_pushstring(L, "server");
+	lua_setfield(L, -2, "kind");
 	/* mt.closed = <server_closed> */
 	lua_pushcfunction(L, server_closed);
 	lua_setfield(L, -2, "closed");
@@ -728,12 +746,16 @@ luaopen_lem_io_core(lua_State *L)
 	lua_pushcclosure(L, unix_listen, 1);
 	lua_setfield(L, -2, "listen");
 
-	/* insert the unix.passfd_ function */
+	/* insert the unix.passfd_* function */
 	lua_pushcfunction(L, unix_passfd_send);
 	lua_setfield(L, -2, "passfd_send");
 
 	lua_pushcfunction(L, unix_passfd_recv);
 	lua_setfield(L, -2, "passfd_recv");
+
+	/* set set_collect_interval function */
+	lua_pushcfunction(L, io_set_collect_interval);
+	lua_setfield(L, -2, "set_collect_interval");
 
 	/* insert the unix table */
 	lua_setfield(L, -2, "unix");

@@ -23,9 +23,9 @@ package.cpath = '?.so'
 
 local lfs   = require 'lem.lfs'
 local signal = require 'lem.signal'
+
 local function handler(signum)
 	print('got ' .. signal.lookup(signum))
-
 	os.exit(1)
 end
 
@@ -35,8 +35,8 @@ local utils    = require 'lem.utils'
 local io       = require 'lem.io'
 local hathaway = require 'lem.hathaway'
 
-hathaway.debug = --function() end -- must be set before import()
-								  print
+hathaway.debug = function() end -- must be set before import()
+								 -- print
 hathaway.import()      -- when using single instance API
 
 GET('/', function(req, res)
@@ -161,7 +161,6 @@ GETM('^/hello/([^/]+)$', function(req, res, name)
 end)
 
 if arg[1] == 'socket' then
-	--local sock = assert(io.unix.listen('socket', 666))
 	local sock = assert(io.unix.connect('socket'))
 	local fdlist, errmsg = io.unix.passfd_recv(sock)
 	print(fdlist, errmsg)
@@ -189,7 +188,6 @@ else
 	while true do
 		sleeper:sleep(0.01)
 	end
-
 end
 utils.exit(0) -- otherwise open connections will keep us running
 

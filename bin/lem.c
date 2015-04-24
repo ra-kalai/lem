@@ -245,50 +245,59 @@ runqueue_pop(EV_P_ struct ev_idle *w, int revents)
 		return;
 	}
 
-	lem_debug("running thread...");
+	lem_debug("running lua threads...");
 
-	slot = &rq.queue[rq.first];
-	T = slot->T;
-	nargs = slot->nargs;
+	for(;;) {
+		slot = &rq.queue[rq.first];
+		T = slot->T;
+		nargs = slot->nargs;
 
-	rq.first++;
-	rq.first &= rq.mask;
+		rq.first++;
+		rq.first &= rq.mask;
 
-	/* run Lua thread */
+		/* run Lua thread */
 #if LUA_VERSION_NUM >= 502
-	switch (lua_resume(T, NULL, nargs)) {
+		switch (lua_resume(T, NULL, nargs)) {
 #else
-	switch (lua_resume(T, nargs)) {
+		switch (lua_resume(T, nargs)) {
 #endif
-	case LUA_OK: /* thread finished successfully */
-		lem_debug("thread finished successfully");
-		lem_forgetthread(T);
-		return;
+			case LUA_OK: /* thread finished successfully */
+				lem_debug("thread finished successfully");
+				lem_forgetthread(T);
+				break;
 
-	case LUA_YIELD: /* thread yielded */
-		lem_debug("thread yielded");
-		return;
+			case LUA_YIELD: /* thread yielded */
+				lem_debug("thread yielded");
+				break;
 
-	case LUA_ERRERR: /* error running error handler */
-		lem_debug("thread errored while running error handler");
+			case LUA_ERRERR: /* error running error handler */
+				lem_debug("thread errored while running error handler");
 #if LUA_VERSION_NUM >= 502
-	case LUA_ERRGCMM:
-		lem_debug("error in __gc metamethod");
+			case LUA_ERRGCMM:
+				lem_debug("error in __gc metamethod");
 #endif
-	case LUA_ERRRUN: /* runtime error */
-		lem_debug("thread errored");
-		thread_error(T);
-		break;
+			case LUA_ERRRUN: /* runtime error */
+				lem_debug("thread errored");
+				thread_error(T);
+				goto lua_failure;
 
-	case LUA_ERRMEM: /* out of memory */
-		oom();
+			case LUA_ERRMEM: /* out of memory */
+				oom();
 
-	default: /* this shouldn't happen */
-		lem_debug("lua_resume: unknown error");
-		lua_pushliteral(L, "unknown error");
-		break;
+			default: /* this shouldn't happen */
+				lem_debug("lua_resume: unknown error");
+				lua_pushliteral(L, "unknown error");
+				goto lua_failure;
+		}
+
+		if (rq.first == rq.last) { /* queue is empty */
+			ev_idle_stop(EV_A_ w);
+			return ;
+		}
 	}
-	lem_exit(EXIT_FAILURE);
+
+	lua_failure:
+		lem_exit(EXIT_FAILURE);
 }
 
 #include "pool.c"

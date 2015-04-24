@@ -494,6 +494,7 @@ unix_passfd_send(lua_State *T)
 
 	int i, e;
 	struct stream *os;
+	struct ev_io *eio;
 
 	pf = lem_xmalloc(sizeof *pf);
 	int *myfds = pf->myfds;
@@ -504,9 +505,20 @@ unix_passfd_send(lua_State *T)
 			int fd = lua_tointeger(T, -1);
 			myfds[i-1] = fd;
 		} else {
-		  luaL_checktype(T, -1, LUA_TUSERDATA);
-		  os = lua_touserdata(T, -1);
-		  myfds[i-1] = os->w.fd;
+			luaL_checktype(T, -1, LUA_TUSERDATA);
+			lua_getmetatable(T, -1);
+			lua_pushstring(T, "kind");
+			lua_rawget(T, -2);
+			const char *kind = lua_tostring(T, -1);
+			if (strcmp(kind, "stream") == 0) {
+				lua_pop(T, 2);
+				os = lua_touserdata(T, -1);
+				myfds[i-1] = os->w.fd;
+			} else if (strcmp(kind, "server")==0){
+				lua_pop(T, 2);
+				eio = lua_touserdata(T, -1);
+				myfds[i-1] = eio->fd;
+			}
 		}
 		lua_pop(T, 1);
 	}
