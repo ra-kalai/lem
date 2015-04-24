@@ -53,14 +53,9 @@
 # define ev_set_priority(ev, pri)
 #endif
 
-#if EV_MULTIPLICITY
 extern struct ev_loop *lem_loop;
-# define LEM lem_loop
-# define LEM_ LEM,
-#else
-# define LEM
-# define LEM_
-#endif
+#define LEM lem_loop
+#define LEM_ LEM,
 
 struct lem_async {
 	void (*work)(struct lem_async *a);

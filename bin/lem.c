@@ -62,9 +62,7 @@ struct lem_runqueue {
 	unsigned int mask;
 };
 
-#if EV_MULTIPLICITY
 struct ev_loop *lem_loop;
-#endif
 static lua_State *L;
 
 lua_State*
@@ -349,12 +347,8 @@ runqueue_wait_init(void)
 int
 main(int argc, char *argv[])
 {
-#if EV_MULTIPLICITY
 	lem_loop = ev_default_loop(LEM_LOOPFLAGS);
 	if (lem_loop == NULL) {
-#else
-	if (!ev_default_loop(LEM_LOOPFLAGS)) {
-#endif
 		lem_log_error("lem: error initializing event loop");
 		return EXIT_FAILURE;
 	}
@@ -411,11 +405,7 @@ main(int argc, char *argv[])
 	free(rq.queue);
 
 	/* destroy loop */
-#if EV_MULTIPLICITY
 	ev_loop_destroy(lem_loop);
-#else
-	ev_default_destroy();
-#endif
 	lem_debug("Bye %s", exit_status == EXIT_SUCCESS ? "o/" : ":(");
 	return exit_status;
 
@@ -424,10 +414,8 @@ error:
 		lua_close(L);
 	if (rq.queue)
 		free(rq.queue);
-#if EV_MULTIPLICITY
+
 	ev_loop_destroy(lem_loop);
-#else
-	ev_default_destroy();
-#endif
+
 	return EXIT_FAILURE;
 }

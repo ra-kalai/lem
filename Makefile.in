@@ -54,6 +54,11 @@ E=@echo
 Q=@
 endif
 
+ifdef COVERAGE
+CFLAGS += -fprofile-arcs -ftest-coverage -O0 -g
+LDFLAGS += --coverage -fprofile-arcs -ftest-coverage -g
+endif
+
 .PHONY: all strip install clean
 
 all: CPPFLAGS += -DNDEBUG
@@ -85,7 +90,9 @@ bin/lem: $(objects)
 
 %.so: %.c include/lem.h
 	$E '  CCLD  $@'
-	$Q$(CC) $(CFLAGS) $(CPPFLAGS) -fPIC -nostartfiles $(SHARED) $< -o $@ $(LDFLAGS)
+	$Q$(CC) $(CFLAGS) $(CPPFLAGS) -fPIC -nostartfiles  -c $< -o $@.o
+	$Q$(CC) $(CFLAGS) $(CPPFLAGS) -fPIC -nostartfiles $(SHARED) $@.o -o $@ $(LDFLAGS)
+	@#$Q$(CC) $(CFLAGS) $(CPPFLAGS) -fPIC -nostartfiles $(SHARED) $< -o $@ $(LDFLAGS)
 
 lua/luaconf.h: lua/luaconf.h.in
 	$E '  SED > $@'
