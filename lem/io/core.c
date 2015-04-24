@@ -571,7 +571,8 @@ io_set_collect_interval(lua_State *T)
 	lua_Number v;
 	v = luaL_checknumber(T, 1);
 	ev_set_io_collect_interval(LEM_ v);
-	return 1;
+	lua_settop(T, 0);
+	return 0;
 }
 
 int
@@ -753,12 +754,12 @@ luaopen_lem_io_core(lua_State *L)
 	lua_pushcfunction(L, unix_passfd_recv);
 	lua_setfield(L, -2, "passfd_recv");
 
+	/* insert the unix table */
+	lua_setfield(L, -2, "unix");
+
 	/* set set_collect_interval function */
 	lua_pushcfunction(L, io_set_collect_interval);
 	lua_setfield(L, -2, "set_collect_interval");
-
-	/* insert the unix table */
-	lua_setfield(L, -2, "unix");
 
 	return 1;
 }
