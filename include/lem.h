@@ -31,6 +31,15 @@
 # define __FUNCTION__ __func__ /* C99 */
 #endif
 
+#if defined(__GNUC__)
+#define likely(x)      __builtin_expect(!!(x), 1)
+#define unlikely(x)    __builtin_expect(!!(x), 0)
+#else
+#define likely(x)      (x)
+#define unlikely(x)    (x)
+#endif
+
+
 /* Built-time assertions */
 #define LEM_BUILD_ASSERT__(prefix, line) prefix##line
 #define LEM_BUILD_ASSERT_(prefix, line) LEM_BUILD_ASSERT__(prefix, line)

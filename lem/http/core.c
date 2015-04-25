@@ -194,11 +194,18 @@ parse_http_process(lua_State *T, struct lem_inputbuf *b)
 	unsigned int w = s->w;
 	unsigned int r = b->start;
 	unsigned char state = s->state;
+	unsigned char ch;
 
-	while (r < b->end) {
-		unsigned char ch = b->buf[r++];
+	while (likely(r < b->end)) {
+		ch = b->buf[r++];
 
-		state = state_table[state][ch > 127 ? C_ETC : ascii_class[ch]];
+		if (likely(ch < 127)) {
+			state = state_table[state][ascii_class[ch]];
+		} else {
+			state = state_table[state][C_ETC];
+		}
+
+		//state = state_table[state][ch > 127 ? C_ETC : ascii_class[ch]];
 		/*lem_debug("char = %c (%hhu), state = %hhu", ch, ch, state);*/
 		switch (state) {
 		case SMTD:
@@ -316,7 +323,7 @@ parse_http_process(lua_State *T, struct lem_inputbuf *b)
 		}
 	}
 
-	if (w == LEM_INPUTBUF_SIZE - 1) {
+	if (unlikely(w == LEM_INPUTBUF_SIZE - 1)) {
 		b->start = b->end = 0;
 		lua_settop(T, 0);
 		lua_pushnil(T);

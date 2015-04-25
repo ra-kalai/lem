@@ -206,49 +206,51 @@ server_autospawn_cb(EV_P_ struct ev_io *w, int revents)
 
 	(void)revents;
 
+	for(;;) {
 	/* dequeue the incoming connection */
 #ifdef SOCK_CLOEXEC
-	sock = accept4(w->fd, NULL, NULL, SOCK_CLOEXEC | SOCK_NONBLOCK);
+		sock = accept4(w->fd, NULL, NULL, SOCK_CLOEXEC | SOCK_NONBLOCK);
 #else
-	sock = accept(w->fd, NULL, NULL);
+		sock = accept(w->fd, NULL, NULL);
 #endif
-	if (sock < 0) {
-		switch (errno) {
-		case EAGAIN: case EINTR: case ECONNABORTED:
-		case ENETDOWN: case EPROTO: case ENOPROTOOPT:
-		case EHOSTDOWN:
+		if (sock < 0) {
+			switch (errno) {
+				case EAGAIN: case EINTR: case ECONNABORTED:
+				case ENETDOWN: case EPROTO: case ENOPROTOOPT:
+				case EHOSTDOWN:
 #ifdef ENONET
-		case ENONET:
+				case ENONET:
 #endif
-		case EHOSTUNREACH: case EOPNOTSUPP: case ENETUNREACH:
-			return;
+				case EHOSTUNREACH: case EOPNOTSUPP: case ENETUNREACH:
+					return;
+			}
+			lua_pushnil(T);
+			lua_pushfstring(T, "error accepting connection: %s",
+					strerror(errno));
+			goto error;
 		}
-		lua_pushnil(T);
-		lua_pushfstring(T, "error accepting connection: %s",
-		                strerror(errno));
-		goto error;
-	}
 #ifndef SOCK_CLOEXEC
-	/* set FD_CLOEXEC and make the socket non-blocking */
-	if (fcntl(sock, F_SETFD, FD_CLOEXEC) == -1 ||
-			fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
-		close(sock);
-		lua_pushnil(T);
-		lua_pushfstring(T, "error setting socket flags: %s",
-		                strerror(errno));
-		goto error;
-	}
+		/* set FD_CLOEXEC and make the socket non-blocking */
+		if (fcntl(sock, F_SETFD, FD_CLOEXEC) == -1 ||
+				fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
+			close(sock);
+			lua_pushnil(T);
+			lua_pushfstring(T, "error setting socket flags: %s",
+					strerror(errno));
+			goto error;
+		}
 #endif
-	S = lem_newthread();
+		S = lem_newthread();
 
-	/* copy handler function */
-	lua_pushvalue(T, 2);
-	/* create stream */
-	stream_new(T, sock, 3);
-	/* move function and stream to new thread */
-	lua_xmove(T, S, 2);
+		/* copy handler function */
+		lua_pushvalue(T, 2);
+		/* create stream */
+		stream_new(T, sock, 3);
+		/* move function and stream to new thread */
+		lua_xmove(T, S, 2);
 
-	lem_queue(S, 1);
+		lem_queue(S, 1);
+	}
 	return;
 
 error:

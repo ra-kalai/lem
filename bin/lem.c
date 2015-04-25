@@ -238,7 +238,7 @@ runqueue_pop(EV_P_ struct ev_idle *w, int revents)
 		}
 #else
 		ev_idle_stop(EV_A_ w);
-		lua_gc(L, LUA_GCCOLLECT, 0);
+		//lua_gc(L, LUA_GCCOLLECT, 0);
 #endif
 		return;
 	}
