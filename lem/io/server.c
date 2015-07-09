@@ -16,19 +16,25 @@
  * License along with LEM.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-static struct ev_io *
-server_new(lua_State *T, int fd, int mt)
+struct server_io {
+  ev_io w;
+  enum {STREAM, DATAGRAM} server_kind;
+};
+
+static struct server_io *
+server_new(lua_State *T, int fd, int mt, int kind)
 {
 	/* create userdata and set the metatable */
-	struct ev_io *w = lua_newuserdata(T, sizeof(struct ev_io));
+	struct server_io *ret = lua_newuserdata(T, sizeof(*ret));
 	lua_pushvalue(T, mt);
 	lua_setmetatable(T, -2);
 
 	/* initialize userdata */
-	ev_io_init(w, NULL, fd, EV_READ);
-	w->data = NULL;
+	ev_io_init(&ret->w, NULL, fd, EV_READ);
+	ret->w.data = NULL;
+	ret->server_kind = kind;
 
-	return w;
+	return ret;
 }
 
 static int
@@ -261,21 +267,84 @@ error:
 	lem_queue(T, 2);
 }
 
+static void
+server_recvfrom_cb(EV_P_ struct ev_io *w, int revents)
+{
+	lua_State *T = w->data;
+	int ret;
+	lua_State *S;
+
+	(void)revents;
+
+  static char payload_buf[1<<16];
+  static int i;
+
+	for(i=0;i<1024;i++) {
+    ret = recvfrom(w->fd, payload_buf, sizeof payload_buf, 0, NULL, NULL);
+	/* dequeue the incoming connection */
+		if (ret < 0) {
+			switch (errno) {
+				case EAGAIN: case EINTR: case ECONNABORTED:
+				case ENETDOWN: case EPROTO: case ENOPROTOOPT:
+				case EHOSTDOWN:
+#ifdef ENONET
+				case ENONET:
+#endif
+				case EHOSTUNREACH: case EOPNOTSUPP: case ENETUNREACH:
+					return;
+			}
+			lua_pushnil(T);
+			lua_pushfstring(T, "error accepting connection: %s",
+					strerror(errno));
+			goto error;
+		}
+
+		S = lem_newthread();
+
+		/* copy handler function */
+		lua_pushvalue(T, 2);
+
+		/* push datagram */
+    lua_pushlstring(T, payload_buf, ret);
+
+		/* move function and stream to new thread */
+		lua_xmove(T, S, 2);
+
+		lem_queue(S, 1);
+	}
+	return;
+
+error:
+	ev_io_stop(EV_A_ w);
+	close(w->fd);
+	w->fd = -1;
+	w->data = NULL;
+	lem_queue(T, 2);
+}
+
 static int
 server_autospawn(lua_State *T)
 {
 	struct ev_io *w;
+	struct server_io *io_server;
 
 	luaL_checktype(T, 1, LUA_TUSERDATA);
 	luaL_checktype(T, 2, LUA_TFUNCTION);
 
-	w = lua_touserdata(T, 1);
+	io_server = lua_touserdata(T, 1);
+	w = &io_server->w;
+
 	if (w->fd < 0)
 		return io_closed(T);
 	if (w->data != NULL)
 		return io_busy(T);
 
-	w->cb = server_autospawn_cb;
+	if (io_server->server_kind == STREAM) {
+		w->cb = server_autospawn_cb;
+	} else {
+		w->cb = server_recvfrom_cb;
+	}
+
 	w->data = T;
 	ev_io_start(LEM_ w);
 

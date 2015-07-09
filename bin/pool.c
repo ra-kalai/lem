@@ -92,6 +92,7 @@ pool_cb(EV_P_ struct ev_async *w, int revents)
 
 	(void)revents;
 
+
 	pool_done_lock();
 	a = pool_done;
 	pool_done = NULL;
@@ -174,6 +175,12 @@ pool_spawnthread(void)
 		pthread_attr_destroy(&attr);
 		goto error;
 	}
+
+	//pthread_attr_setstacksize(&attr, PTHREAD_STACK_MIN*4);
+	//if (ret) {
+	//	pthread_attr_destroy(&attr);
+	//	goto error;
+	//}
 
 	ret = pthread_create(&thread, &attr, pool_threadfunc, NULL);
 	pthread_attr_destroy(&attr);

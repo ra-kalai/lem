@@ -16,11 +16,7 @@
  * License along with LEM.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MAXPENDING
-#define MAXPENDING      50
-#endif
-
-struct tcp_getaddr {
+struct udp_getaddr {
 	struct lem_async a;
 	lua_State *T;
 	const char *node;
@@ -29,18 +25,18 @@ struct tcp_getaddr {
 	int err;
 };
 
-static const int tcp_famnumber[] = { AF_UNSPEC, AF_INET, AF_INET6 };
-static const char *const tcp_famnames[] = { "any", "ipv4", "ipv6", NULL };
+static const int udp_famnumber[] = { AF_UNSPEC, AF_INET, AF_INET6 };
+static const char *const udp_famnames[] = { "any", "ipv4", "ipv6", NULL };
 
 static void
-tcp_connect_work(struct lem_async *a)
+udp_connect_work(struct lem_async *a)
 {
-	struct tcp_getaddr *g = (struct tcp_getaddr *)a;
+	struct udp_getaddr *g = (struct udp_getaddr *)a;
 	struct addrinfo hints = {
 		.ai_flags     = 0,
-		.ai_family    = tcp_famnumber[g->sock],
-		.ai_socktype  = SOCK_STREAM,
-		.ai_protocol  = IPPROTO_TCP,
+		.ai_family    = udp_famnumber[g->sock],
+		.ai_socktype  = SOCK_DGRAM,
+		.ai_protocol  = IPPROTO_UDP,
 		.ai_addrlen   = 0,
 		.ai_addr      = NULL,
 		.ai_canonname = NULL,
@@ -91,11 +87,11 @@ tcp_connect_work(struct lem_async *a)
 		}
 
 		/* make the socket non-blocking */
-		if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
-			g->sock = -2;
-			g->err = errno;
-			goto error;
-		}
+		//if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
+		//	g->sock = -2;
+		//	g->err = errno;
+		//	goto error;
+		//}
 
 		g->sock = sock;
 		goto out;
@@ -111,9 +107,9 @@ out:
 }
 
 static void
-tcp_connect_reap(struct lem_async *a)
+udp_connect_reap(struct lem_async *a)
 {
-	struct tcp_getaddr *g = (struct tcp_getaddr *)a;
+	struct udp_getaddr *g = (struct udp_getaddr *)a;
 	lua_State *T = g->T;
 	int sock = g->sock;
 
@@ -146,19 +142,19 @@ tcp_connect_reap(struct lem_async *a)
 }
 
 static int
-tcp_connect(lua_State *T)
+udp_connect(lua_State *T)
 {
 	const char *node = luaL_checkstring(T, 1);
 	const char *service = luaL_checkstring(T, 2);
-	int family = luaL_checkoption(T, 3, "any", tcp_famnames);
-	struct tcp_getaddr *g;
+	int family = luaL_checkoption(T, 3, "any", udp_famnames);
+	struct udp_getaddr *g;
 
-	g = lem_xmalloc(sizeof(struct tcp_getaddr));
+	g = lem_xmalloc(sizeof(struct udp_getaddr));
 	g->T = T;
 	g->node = node;
 	g->service = service;
 	g->sock = family;
-	lem_async_do(&g->a, tcp_connect_work, tcp_connect_reap);
+	lem_async_do(&g->a, udp_connect_work, udp_connect_reap);
 
 	lua_settop(T, 2);
 	lua_pushvalue(T, lua_upvalueindex(1));
@@ -166,14 +162,14 @@ tcp_connect(lua_State *T)
 }
 
 static void
-tcp_listen_work(struct lem_async *a)
+udp_listen_work(struct lem_async *a)
 {
-	struct tcp_getaddr *g = (struct tcp_getaddr *)a;
+	struct udp_getaddr *g = (struct udp_getaddr *)a;
 	struct addrinfo hints = {
 		.ai_flags     = AI_PASSIVE,
 		.ai_family    = g->sock,
-		.ai_socktype  = SOCK_STREAM,
-		.ai_protocol  = IPPROTO_TCP,
+		.ai_socktype  = SOCK_DGRAM,
+		.ai_protocol  = IPPROTO_UDP,
 		.ai_addrlen   = 0,
 		.ai_addr      = NULL,
 		.ai_canonname = NULL,
@@ -191,7 +187,7 @@ tcp_listen_work(struct lem_async *a)
 		return;
 	}
 
-	/* create the TCP socket */
+	/* create the UDP socket */
 	sock = socket(addr->ai_family,
 #ifdef SOCK_CLOEXEC
 			SOCK_CLOEXEC |
@@ -225,13 +221,6 @@ tcp_listen_work(struct lem_async *a)
 		goto error;
 	}
 
-	/* listen to the socket */
-	if (listen(sock, g->err)) {
-		g->sock = -4;
-		g->err = errno;
-		goto error;
-	}
-
 	/* make the socket non-blocking */
 	if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
 		g->sock = -2;
@@ -249,9 +238,9 @@ out:
 }
 
 static void
-tcp_listen_reap(struct lem_async *a)
+udp_listen_reap(struct lem_async *a)
 {
-	struct tcp_getaddr *g = (struct tcp_getaddr *)a;
+	struct udp_getaddr *g = (struct udp_getaddr *)a;
 	lua_State *T = g->T;
 	int sock = g->sock;
 
@@ -260,7 +249,7 @@ tcp_listen_reap(struct lem_async *a)
 
 	if (sock >= 0) {
 		free(g);
-		server_new(T, sock, 3, STREAM);
+		server_new(T, sock, 3, DATAGRAM);
 		lem_queue(T, 1);
 		return;
 	}
@@ -279,33 +268,28 @@ tcp_listen_reap(struct lem_async *a)
 		lua_pushfstring(T, "error binding to '%s:%s': %s",
 				g->node, g->service, strerror(g->err));
 		break;
-	case 4:
-		lua_pushfstring(T, "error listening on '%s:%s': %s",
-				g->node, g->service, strerror(g->err));
-		break;
 	}
 	free(g);
 	lem_queue(T, 2);
 }
 
 static int
-tcp_listen(lua_State *T, int family)
+udp_listen(lua_State *T, int family)
 {
 	const char *node = luaL_checkstring(T, 1);
 	const char *service = luaL_checkstring(T, 2);
-	int backlog = (int)luaL_optnumber(T, 3, MAXPENDING);
-	struct tcp_getaddr *g;
+	struct udp_getaddr *g;
 
 	if (node[0] == '*' && node[1] == '\0')
 		node = NULL;
 
-	g = lem_xmalloc(sizeof(struct tcp_getaddr));
+	g = lem_xmalloc(sizeof(struct udp_getaddr));
 	g->T = T;
 	g->node = node;
 	g->service = service;
 	g->sock = family;
-	g->err = backlog;
-	lem_async_do(&g->a, tcp_listen_work, tcp_listen_reap);
+
+	lem_async_do(&g->a, udp_listen_work, udp_listen_reap);
 
 	lua_settop(T, 2);
 	lua_pushvalue(T, lua_upvalueindex(1));
@@ -313,13 +297,13 @@ tcp_listen(lua_State *T, int family)
 }
 
 static int
-tcp_listen4(lua_State *T)
+udp_listen4(lua_State *T)
 {
-	return tcp_listen(T, AF_INET);
+	return udp_listen(T, AF_INET);
 }
 
 static int
-tcp_listen6(lua_State *T)
+udp_listen6(lua_State *T)
 {
-	return tcp_listen(T, AF_INET6);
+	return udp_listen(T, AF_INET6);
 }

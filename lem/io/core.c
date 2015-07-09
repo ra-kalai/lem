@@ -108,6 +108,7 @@ error:
 #include "stream.c"
 #include "server.c"
 #include "tcp.c"
+#include "udp.c"
 #include "unix.c"
 
 /*
@@ -336,7 +337,7 @@ io_fromfd_reap(struct lem_async *a)
 	switch (ret) {
 	case 0: file_new(T, fd, 1); break;
 	case 1: stream_new(T, fd, 2); break;
-	case 2: server_new(T, fd, 3); break;
+	case 2: server_new(T, fd, 3, STREAM); break;
 	default:
 		lem_queue(T, io_strerror(T, -ret));
 		return;
@@ -735,6 +736,23 @@ luaopen_lem_io_core(lua_State *L)
 	lua_setfield(L, -2, "listen6");
 	/* insert the tcp table */
 	lua_setfield(L, -2, "tcp");
+
+	/* create udp table */
+	lua_createtable(L, 0, 0);
+	/* insert the connect function */
+	lua_getfield(L, -2, "Stream"); /* upvalue 1 = Stream */
+	lua_pushcclosure(L, udp_connect, 1);
+	lua_setfield(L, -2, "connect");
+	/* insert the listen4 function */
+	lua_getfield(L, -2, "Server"); /* upvalue 1 = Server */
+	lua_pushcclosure(L, udp_listen4, 1);
+	lua_setfield(L, -2, "listen4");
+	/* insert the listen6 function */
+	lua_getfield(L, -2, "Server"); /* upvalue 1 = Server */
+	lua_pushcclosure(L, udp_listen6, 1);
+	lua_setfield(L, -2, "listen6");
+	/* insert the udp table */
+	lua_setfield(L, -2, "udp");
 
 	/* create unix table */
 	lua_createtable(L, 0, 0);

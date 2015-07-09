@@ -163,11 +163,12 @@ function Response:contentlength()
 	return len
 end
 
-function Response:appendheader(rope, i, size)
-	if not size then size = 0 end
+function Response:appendheader(rope)
+	local size = 0
 	local line
+	local i = 1
 	for k, v in pairs(self.headers) do
-		line = format('%s: %s\r\n', k, tostring(v))
+		line = format('%s: %s\r\n', k, v)
 		i = i + 1
 		rope[i] = line
 		size = size + #line
@@ -179,7 +180,7 @@ function Response:appendheader(rope, i, size)
 end
 
 function Response:appendbody(rope, i, size)
-	if not size then size = 0 end
+	size = size or 0
 	local chunk
 	for j = 1, #self do
 		chunk = self[j]

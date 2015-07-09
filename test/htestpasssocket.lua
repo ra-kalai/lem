@@ -35,6 +35,8 @@ local utils    = require 'lem.utils'
 local io       = require 'lem.io'
 local hathaway = require 'lem.hathaway'
 
+utils.poolconfig(1000,10,10);
+
 hathaway.debug = function() end -- must be set before import()
 								 -- print
 hathaway.import()      -- when using single instance API

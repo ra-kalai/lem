@@ -18,11 +18,9 @@
 --
 
 local setmetatable = setmetatable
-local tostring = tostring
 local tonumber = tonumber
 local pairs = pairs
 local type = type
-local date = os.date
 local format = string.format
 local concat = table.concat
 local remove = table.remove
@@ -30,6 +28,9 @@ local remove = table.remove
 local io       = require 'lem.io'
                  require 'lem.http'
 local response = require 'lem.http.response'
+local utils = require 'lem.utils'
+local date = utils.now_date
+--local date = os.date
 
 local M = {}
 
@@ -130,18 +131,17 @@ local function handleHTTP(self, client)
 			end
 		end
 
+		local body
+		local body_len
 		if headers['Content-Length'] == nil and res.status ~= 204 then
-			local len
 			if file then
-				len = file:size()
+				body_len = file:size()
 			else
-				len = 0
-				for i = 1, #res do
-					len = len + #res[i]
-				end
+				body = concat(res)
+				body_len = #body
 			end
 
-			headers['Content-Length'] = len
+			headers['Content-Length'] = body_len
 		end
 
 		if headers['Date'] == nil then
@@ -166,7 +166,7 @@ local function handleHTTP(self, client)
 			rope[1] = format('HTTP/%s %s\r\n', version, status)
 		end
 
-		res:appendheader(rope, 1)
+		res:appendheader(rope)
 
 		client:cork()
 
@@ -178,8 +178,7 @@ local function handleHTTP(self, client)
 				ok, err = client:sendfile(file, headers['Content-Length'])
 				if close then file:close() end
 			else
-				local body = concat(res)
-				if #body > 0 then
+				if body_len > 0 then
 					ok, err = client:write(body)
 				end
 			end

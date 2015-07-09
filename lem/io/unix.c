@@ -193,7 +193,7 @@ unix_listen_reap(struct lem_async *a)
 
 	if (sock >= 0) {
 		free(u);
-		server_new(T, sock, 2);
+		server_new(T, sock, 2, STREAM);
 		lem_queue(T, 1);
 		return;
 	}
