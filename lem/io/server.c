@@ -276,12 +276,14 @@ server_recvfrom_cb(EV_P_ struct ev_io *w, int revents)
 
 	(void)revents;
 
-  static char payload_buf[1<<16];
-  static int i;
+	static char payload_buf[1<<16];
+	struct sockaddr_storage client_addr;
+	char ip_address[INET6_ADDRSTRLEN];
+	socklen_t client_addr_len = sizeof(client_addr);
 
-	for(i=0;i<1024;i++) {
-    ret = recvfrom(w->fd, payload_buf, sizeof payload_buf, 0, NULL, NULL);
-	/* dequeue the incoming connection */
+	for(;;) {
+		ret = recvfrom(w->fd, payload_buf, sizeof payload_buf, 0, (struct sockaddr*)&client_addr, &client_addr_len);
+		/* dequeue the incoming connection */
 		if (ret < 0) {
 			switch (errno) {
 				case EAGAIN: case EINTR: case ECONNABORTED:
@@ -294,7 +296,7 @@ server_recvfrom_cb(EV_P_ struct ev_io *w, int revents)
 					return;
 			}
 			lua_pushnil(T);
-			lua_pushfstring(T, "error accepting connection: %s",
+			lua_pushfstring(T, "error while receiving an udp packet: %s",
 					strerror(errno));
 			goto error;
 		}
@@ -305,12 +307,26 @@ server_recvfrom_cb(EV_P_ struct ev_io *w, int revents)
 		lua_pushvalue(T, 2);
 
 		/* push datagram */
-    lua_pushlstring(T, payload_buf, ret);
+		lua_pushlstring(T, payload_buf, ret);
 
-		/* move function and stream to new thread */
-		lua_xmove(T, S, 2);
+		if (client_addr.ss_family == AF_INET) {
+			lua_pushstring(T, inet_ntop(client_addr.ss_family,
+																	&((struct sockaddr_in*)&client_addr)->sin_addr.s_addr,
+																	ip_address,
+																	sizeof ip_address));
+			lua_pushinteger(T, ((struct sockaddr_in*)&client_addr)->sin_port);
+		} else if (client_addr.ss_family == AF_INET6) {
+			lua_pushstring(T, inet_ntop(client_addr.ss_family,
+																	&((struct sockaddr_in6*)&client_addr)->sin6_addr,
+																	ip_address,
+																	sizeof ip_address));
+			lua_pushinteger(T, ((struct sockaddr_in6*)&client_addr)->sin6_port);
+		}
 
-		lem_queue(S, 1);
+		/* move function and datagram and ip and port to new thread */
+		lua_xmove(T, S, 4);
+
+		lem_queue(S, 3);
 	}
 	return;
 

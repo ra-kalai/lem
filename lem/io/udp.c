@@ -87,21 +87,21 @@ udp_connect_work(struct lem_async *a)
 		}
 
 		/* make the socket non-blocking */
-		//if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
-		//	g->sock = -2;
-		//	g->err = errno;
-		//	goto error;
-		//}
+		if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
+			g->sock = -2;
+			g->err = errno;
+			goto error;
+		}
 
 		g->sock = sock;
 		goto out;
 	}
 
 	g->sock = -3;
-	goto out;
 
 error:
 	close(sock);
+
 out:
 	freeaddrinfo(result);
 }
