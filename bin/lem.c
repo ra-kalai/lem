@@ -67,7 +67,7 @@ static lua_State *L;
 
 lua_State*
 lem_get_global_lua_state() {
-  return L;
+	return L;
 }
 static struct lem_runqueue rq;
 static int exit_status = EXIT_SUCCESS;

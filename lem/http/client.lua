@@ -118,9 +118,9 @@ end
 
 function Client:get(url, extra_headers)
 	extra_headers = extra_headers or {
-    Connection = 'keep-alive'
---  Connection = 'close'
-  }
+		Connection = 'keep-alive'
+--	Connection = 'close'
+	}
 
 	local proto, domain_and_port, uri = url:match('([a-zA-Z0-9]+)://([a-zA-Z0-9.:]+)(/.*)')
 	if not proto then

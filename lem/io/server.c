@@ -17,8 +17,8 @@
  */
 
 struct server_io {
-  ev_io w;
-  enum {STREAM, DATAGRAM} server_kind;
+	ev_io w;
+	enum {STREAM, DATAGRAM} server_kind;
 };
 
 static struct server_io *
@@ -30,7 +30,9 @@ server_new(lua_State *T, int fd, int mt, int kind)
 	lua_setmetatable(T, -2);
 
 	/* initialize userdata */
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
 	ev_io_init(&ret->w, NULL, fd, EV_READ);
+#pragma GCC diagnostic pop
 	ret->w.data = NULL;
 	ret->server_kind = kind;
 
