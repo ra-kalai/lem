@@ -49,6 +49,68 @@ do
 	end
 end
 
+function lfs.glob(path, kind)
+	kind = kind or 'df'
+	local folder =  {}
+	local ret = {}
+
+	local list_file
+	local list_dir
+
+	if kind:match('d') then list_dir = true end
+	if kind:match('f') then list_file = true end
+
+	path:gsub('(/?[^/]+/?)', function (match)
+		folder[#folder+1] = match
+	end)
+
+	local dirpath = ''
+	local leave_first_loop = false
+
+	for i, cdir in pairs(folder) do
+
+		if cdir:match('%*') then
+			for name in lfs.dir(dirpath) do
+				if name ~= '.'  and
+					 name ~= '..' then
+
+					if name:match(cdir:gsub("%*",".*"):gsub('/','')) then
+						local attr = lfs.attributes(dirpath .. name)
+
+						if attr.mode == 'file' then
+							if list_file and i == #folder then
+								ret[#ret+1] = dirpath .. name
+							end
+						else
+							if list_dir and i == #folder then
+								ret[#ret+1] = dirpath .. name
+							else
+								local path_down = dirpath .. name .. '/'
+
+								for i2 = i+1, #folder do
+									path_down = path_down .. folder[i2]
+								end
+								local lret = glob(path_down, kind)
+								for li=1,#lret do
+									ret[#ret+1] = lret[li]
+								end
+							end
+						end
+
+						leave_first_loop = true
+					end
+				end
+			end
+		else
+			dirpath = dirpath .. cdir
+		end
+
+		if leave_first_loop == true then break end
+	end
+
+	return ret
+end
+
 return lfs
 
 -- vim: ts=2 sw=2 noet:

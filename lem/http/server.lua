@@ -29,8 +29,7 @@ local io       = require 'lem.io'
                  require 'lem.http'
 local response = require 'lem.http.response'
 local utils = require 'lem.utils'
-local date = utils.now_date
---local date = os.date
+local date = os.date
 
 local M = {}
 

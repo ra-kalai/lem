@@ -25,6 +25,8 @@
 #include <dirent.h>
 #include <utime.h>
 #include <assert.h>
+#include <libgen.h>
+#include <string.h>
 
 #include <lem.h>
 
@@ -724,6 +726,36 @@ lfs_dir(lua_State *T)
 	return lua_yield(T, 3);
 }
 
+/*
+ * lfs.dirname(path)
+ */
+static int
+lfs_dirname(lua_State *T)
+{
+	const char *ropath = luaL_checkstring(T, 1);
+	char *path = strdup(ropath);
+	lua_settop(T, 0);
+	lua_pushstring(T, dirname(path));
+	free(path);
+
+	return 1;
+}
+
+/*
+ * lfs.basename(path)
+ */
+static int
+lfs_basename(lua_State *T)
+{
+	const char *ropath = luaL_checkstring(T, 1);
+	char *path = strdup(ropath);
+	lua_settop(T, 0);
+	lua_pushstring(T, basename(path));
+	free(path);
+
+	return 1;
+}
+
 int
 luaopen_lem_lfs_core(lua_State *L)
 {
@@ -788,6 +820,14 @@ luaopen_lem_lfs_core(lua_State *L)
 	/* insert currentdir function */
 	lua_pushcfunction(L, lfs_currentdir);
 	lua_setfield(L, -2, "currentdir");
+
+	/* insert dirname function */
+	lua_pushcfunction(L, lfs_dirname);
+	lua_setfield(L, -2, "dirname");
+
+	/* insert basename function */
+	lua_pushcfunction(L, lfs_basename);
+	lua_setfield(L, -2, "basename");
 
 	return 1;
 }
