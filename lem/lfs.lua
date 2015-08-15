@@ -90,7 +90,7 @@ function lfs.glob(path, kind)
 								for i2 = i+1, #folder do
 									path_down = path_down .. folder[i2]
 								end
-								local lret = glob(path_down, kind)
+								local lret = lfs.glob(path_down, kind)
 								for li=1,#lret do
 									ret[#ret+1] = lret[li]
 								end
