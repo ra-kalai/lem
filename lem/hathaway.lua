@@ -179,7 +179,7 @@ function Hathaway:import(env)
 	env.PUTM     = function(...) self:PUTM(...) end
 	env.DELETEM  = function(...) self:DELETEM(...) end
 	env.OPTIONSM = function(...) self:OPTIONSM(...) end
-	env.Hathaway = function(...) self:run(...) end
+	env.Hathaway = function(...) return self:run(...) end
 end
 
 local function new()
