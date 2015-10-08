@@ -21,6 +21,7 @@ struct udp_getaddr {
 	lua_State *T;
 	const char *node;
 	const char *service;
+	int broadcast;
 	int sock;
 	int err;
 };
@@ -80,6 +81,10 @@ udp_connect_work(struct lem_async *a)
 			goto error;
 		}
 #endif
+	if (g->broadcast) {
+		setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &g->broadcast, sizeof(g->broadcast));
+	}
+
 		/* connect */
 		if (connect(sock, addr->ai_addr, addr->ai_addrlen)) {
 			close(sock);
@@ -147,6 +152,11 @@ udp_connect(lua_State *T)
 	const char *node = luaL_checkstring(T, 1);
 	const char *service = luaL_checkstring(T, 2);
 	int family = luaL_checkoption(T, 3, "any", udp_famnames);
+	int broadcast = lua_isboolean(T, 4);
+	if (broadcast) {
+		lua_toboolean(T, 4);
+	}
+
 	struct udp_getaddr *g;
 
 	g = lem_xmalloc(sizeof(struct udp_getaddr));
@@ -154,6 +164,7 @@ udp_connect(lua_State *T)
 	g->node = node;
 	g->service = service;
 	g->sock = family;
+	g->broadcast = broadcast;
 	lem_async_do(&g->a, udp_connect_work, udp_connect_reap);
 
 	lua_settop(T, 2);
