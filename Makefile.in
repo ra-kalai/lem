@@ -76,7 +76,8 @@ lem/io/core.so: include/lem-parsers.h \
 	lem/io/stream.c \
 	lem/io/server.c \
 	lem/io/unix.c \
-	lem/io/tcp.c
+	lem/io/tcp.c \
+	lem/io/udp.c
 lem/parsers/core.so: include/lem-parsers.h
 lem/http/core.so: include/lem-parsers.h
 
@@ -149,4 +150,4 @@ install: \
 	$(clibs:%=$(DESTDIR)$(cmoddir)/%)
 
 clean:
-	rm -f bin/lem bin/*.o $(clibs) lua/luaconf.h lem.pc
+	rm -f bin/lem bin/*.o lem/*/core.so.o lem/utils.so.o $(clibs) lua/luaconf.h lem.pc

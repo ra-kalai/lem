@@ -81,9 +81,9 @@ udp_connect_work(struct lem_async *a)
 			goto error;
 		}
 #endif
-	if (g->broadcast) {
-		setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &g->broadcast, sizeof(g->broadcast));
-	}
+		if (g->broadcast) {
+			setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &g->broadcast, sizeof(g->broadcast));
+		}
 
 		/* connect */
 		if (connect(sock, addr->ai_addr, addr->ai_addrlen)) {
@@ -232,6 +232,10 @@ udp_listen_work(struct lem_async *a)
 		goto error;
 	}
 
+	if (g->broadcast) {
+		setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &g->broadcast, sizeof(g->broadcast));
+	}
+
 	/* make the socket non-blocking */
 	if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
 		g->sock = -2;
@@ -289,6 +293,12 @@ udp_listen(lua_State *T, int family)
 {
 	const char *node = luaL_checkstring(T, 1);
 	const char *service = luaL_checkstring(T, 2);
+	int broadcast = lua_isboolean(T, 4);
+
+	if (broadcast) {
+		lua_toboolean(T, 4);
+	}
+
 	struct udp_getaddr *g;
 
 	if (node[0] == '*' && node[1] == '\0')
@@ -299,6 +309,7 @@ udp_listen(lua_State *T, int family)
 	g->node = node;
 	g->service = service;
 	g->sock = family;
+	g->broadcast = broadcast;
 
 	lem_async_do(&g->a, udp_listen_work, udp_listen_reap);
 
