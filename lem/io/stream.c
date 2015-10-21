@@ -381,8 +381,8 @@ stream_getpeer(lua_State *T)
 			}
 
 			lua_pushliteral(T, "*unix");
-			lua_pushnumber(T, cred.cr_uid);
-			lua_pushnumber(T, cred.cr_gid);
+			lua_pushinteger(T, cred.cr_uid);
+			lua_pushinteger(T, cred.cr_gid);
 #else
 			struct ucred cred;
 
@@ -391,8 +391,8 @@ stream_getpeer(lua_State *T)
 				return io_strerror(T, errno);
 
 			lua_pushliteral(T, "*unix");
-			lua_pushnumber(T, cred.uid);
-			lua_pushnumber(T, cred.gid);
+			lua_pushinteger(T, cred.uid);
+			lua_pushinteger(T, cred.gid);
 #endif
 			return 3;
 		}
@@ -405,7 +405,7 @@ stream_getpeer(lua_State *T)
 				return io_strerror(T, errno);
 
 			lua_pushstring(T, buf);
-			lua_pushnumber(T, ntohs(addr.in.sin_port));
+			lua_pushinteger(T, ntohs(addr.in.sin_port));
 			return 2;
 		}
 
@@ -417,7 +417,7 @@ stream_getpeer(lua_State *T)
 				return io_strerror(T, errno);
 
 			lua_pushstring(T, buf);
-			lua_pushnumber(T, ntohs(addr.in6.sin6_port));
+			lua_pushinteger(T, ntohs(addr.in6.sin6_port));
 			return 2;
 		}
 	}
@@ -496,7 +496,7 @@ stream_sendfile_reap(struct lem_async *a)
 	int ret;
 
 	if (sf->ret == 0) {
-		lua_pushnumber(T, sf->size);
+		lua_pushinteger(T, sf->size);
 		ret = 1;
 	} else {
 		if (s->open)

@@ -413,7 +413,7 @@ file_seek_reap(struct lem_async *a)
 		return;
 	}
 
-	lua_pushnumber(T, f->seek.offset);
+	lua_pushinteger(T, f->seek.offset);
 	lem_queue(T, 1);
 }
 

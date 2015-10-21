@@ -426,7 +426,7 @@ io_popen(lua_State *T)
 	posix_spawn_file_actions_destroy(&fa);
 	close(fd[1]);
 	stream_new(T, fd[0], lua_upvalueindex(1));
-	lua_pushnumber(T, pid);
+	lua_pushinteger(T, pid);
 	return 2;
 error:
 	posix_spawn_file_actions_destroy(&fa);
