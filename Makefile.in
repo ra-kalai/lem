@@ -23,6 +23,7 @@ cmoddir      = @cmoddir@
 
 headers      = @headers@
 objects      = @objects@
+objects_static      = @objects_static@
 
 llibs = \
 	lem/repl.lua \

@@ -660,6 +660,7 @@ cmoddir
 lmoddir
 SHARED
 CPPFLAGS_ADD
+objects_static
 objects
 headers
 target_alias
@@ -2155,6 +2156,8 @@ ac_config_headers="$ac_config_headers libev/ev-config.h:ev-config.h.in"
 headers='lem.h lem-parsers.h'
 
 objects='bin/lem.o'
+
+objects_static='bin/lem-s.o'
 
 CPPFLAGS_ADD='-Iinclude'
 
@@ -3756,6 +3759,7 @@ fi
 
 # Configure libev
 objects="bin/libev.o $objects"
+objects_static="bin/libev.o $objects_static"
 headers="ev-config.h ev.h $headers"
 CPPFLAGS_ADD="$CPPFLAGS_ADD -Ilibev"
 
@@ -5240,6 +5244,7 @@ if test "$ac_res" != no; then :
 fi
 
   objects="bin/lua.o $objects"
+  objects_static="bin/lua.o $objects"
   headers="luaconf.h lua.h lauxlib.h $headers"
   CPPFLAGS_ADD="$CPPFLAGS_ADD -Ilua"
   Lua_CFLAGS=''

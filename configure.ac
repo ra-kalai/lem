@@ -53,7 +53,7 @@ AC_SEARCH_LIBS([pthread_create], [pthread])
 
 # Configure libev
 objects="bin/libev.o $objects"
-objects_static="bin/libev.o $objects"
+objects_static="bin/libev.o $objects_static"
 headers="ev-config.h ev.h $headers"
 CPPFLAGS_ADD="$CPPFLAGS_ADD -Ilibev"
 
@@ -79,6 +79,7 @@ AS_IF([test "x$with_lua" = 'xbuiltin'],
   [AC_SEARCH_LIBS([sin], [m])]
   [AC_SEARCH_LIBS([dlopen], [dl])]
   [objects="bin/lua.o $objects"]
+  [objects_static="bin/lua.o $objects"]
   [headers="luaconf.h lua.h lauxlib.h $headers"]
   [CPPFLAGS_ADD="$CPPFLAGS_ADD -Ilua"]
   [Lua_CFLAGS='']
