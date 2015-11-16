@@ -16,6 +16,10 @@
  * License along with LEM.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef STATIC_LEM
+#define _GNU_SOURCE 
+#endif
+
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
@@ -29,6 +33,11 @@
 
 #include <lem.h>
 #include <lualib.h>
+
+#ifdef STATIC_LEM
+	#include "static-clib.c"
+	#include "static-llib.c"
+#endif
 
 #if EV_USE_KQUEUE
 #define LEM_LOOPFLAGS (EVFLAG_NOSIGMASK | EVBACKEND_KQUEUE)
@@ -306,13 +315,28 @@ queue_file(int argc, char *argv[], int fidx)
 	lua_State *T = lem_newthread();
 	const char *filename;
 	int i;
+	int lua_load_ret;
 
 	if (fidx < argc)
 		filename = argv[fidx];
-	else
-		filename = LEM_LDIR "lem/repl.lua";
+	else {
+#ifdef STATIC_LEM
+		const char lem_load_repl[] = "require('lem.repl')";
+		lua_load_ret = luaL_loadbuffer(T, lem_load_repl, strlen(lem_load_repl), "load_repl");
 
-	switch (luaL_loadfile(T, filename)) {
+		goto after_repl_load;
+#endif
+
+		filename = "lem/repl.lua";
+	}
+
+	lua_load_ret = luaL_loadfile(T, filename);
+
+#ifdef STATIC_LEM
+	after_repl_load:
+#endif
+
+	switch (lua_load_ret) {
 	case LUA_OK: /* success */
 		break;
 
@@ -367,6 +391,12 @@ main(int argc, char *argv[])
 		goto error;
 	}
 	luaL_openlibs(L);
+
+	#ifdef STATIC_LEM
+		load_lem_libs(L);
+		luaL_loadbuffer(L, (const char*)lem_lualib_preamble, sizeof lem_lualib_preamble, "lem_preamble");
+		lua_call(L, 0, 0);
+	#endif
 
 	/* push thread table */
 	lua_newtable(L);

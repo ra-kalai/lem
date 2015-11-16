@@ -7,6 +7,7 @@ AC_CONFIG_HEADERS([libev/ev-config.h:ev-config.h.in])
 
 AC_SUBST([headers], ['lem.h lem-parsers.h'])
 AC_SUBST([objects], ['bin/lem.o'])
+AC_SUBST([objects_static], ['bin/lem-s.o'])
 AC_SUBST([CPPFLAGS_ADD], ['-Iinclude'])
 AC_SUBST([SHARED], ['-shared'])
 
@@ -52,6 +53,7 @@ AC_SEARCH_LIBS([pthread_create], [pthread])
 
 # Configure libev
 objects="bin/libev.o $objects"
+objects_static="bin/libev.o $objects"
 headers="ev-config.h ev.h $headers"
 CPPFLAGS_ADD="$CPPFLAGS_ADD -Ilibev"
 

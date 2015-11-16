@@ -59,10 +59,13 @@ CFLAGS += -fprofile-arcs -ftest-coverage -O0 -g
 LDFLAGS += --coverage -fprofile-arcs -ftest-coverage -g
 endif
 
+ifndef DEBUG
+  CPPFLAGS += -DNDEBUG
+endif
+
 .PHONY: all strip install clean
 
-all: CPPFLAGS += -DNDEBUG
-all: bin/lem lem.pc $(clibs)
+all: bin/lem lem.pc $(clibs) bin/lem-s
 
 debug: bin/lem lem.pc $(clibs)
 
@@ -86,6 +89,20 @@ lem/http/core.so: include/lem-parsers.h
 	$Q$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 bin/lem: $(objects)
+	$E '  LD    $@'
+	$Q$(CC) $^ -o $@ -rdynamic $(LDFLAGS) $(LIBS)
+
+bin/static-llib.c: bin/lem $(llibs)
+	$E '  LUA-TO-C    $@'
+	./bin/lem bin/pack-llib.lua > bin/static-llib.c
+
+bin/lem-s.o: CPPFLAGS += -DSTATIC_LEM
+bin/lem-s.o: CPPFLAGS += -D'LEM_LDIR="$(lmoddir)/"' 
+bin/lem-s.o:  bin/lem.c bin/static-llib.c bin/static-clib.c
+	$E '  CC    $@'
+	$Q$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o bin/lem-s.o
+
+bin/lem-s: $(objects_static) 
 	$E '  LD    $@'
 	$Q$(CC) $^ -o $@ -rdynamic $(LDFLAGS) $(LIBS)
 
@@ -150,4 +167,4 @@ install: \
 	$(clibs:%=$(DESTDIR)$(cmoddir)/%)
 
 clean:
-	rm -f bin/lem bin/*.o lem/*/core.so.o lem/utils.so.o $(clibs) lua/luaconf.h lem.pc
+	rm -f bin/lem bin/*.o lem/*/core.so.o lem/utils.so.o $(clibs) lua/luaconf.h lem.pc bin/static-llib.c

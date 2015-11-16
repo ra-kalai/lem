@@ -386,7 +386,7 @@ stream_getpeer(lua_State *T)
 #else
 			struct ucred cred;
 
-			len = sizeof(struct ucred);
+			len = sizeof(cred);
 			if (getsockopt(s->r.fd, SOL_SOCKET, SO_PEERCRED, &cred, &len))
 				return io_strerror(T, errno);
 
