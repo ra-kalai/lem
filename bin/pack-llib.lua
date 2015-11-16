@@ -17,17 +17,25 @@
 -- License along with LEM.  If not, see <http://www.gnu.org/licenses/>.
 --
 
+package.path = '?.lua'
+package.cpath = '?.so'
+
 local lfs = require 'lem.lfs'
 local io = require 'lem.io'
+local glob = lfs.glob
+
 
 local serialize
+local loadbc
 if _VERSION == 'Lua 5.1' then
   serialize = string.dump
   lstring = 'loadstring'
+  loadbc = loadstring
 else
   serialize = function (f) return string.dump(f, true) end
   --serialize = function (f) return string.dump(f) end
   lstring = 'load'
+  loadbc = load
 end
 
 local lualib ={}
@@ -40,10 +48,10 @@ lualib[#lualib+1] = [==[
 local c
 
 for i, path in pairs({'lem/*/*.lua','lem/*.lua'}) do
-  for i, v in pairs(lfs.glob(path)) do
+  for i, v in pairs(glob(path)) do
     c = io.open(v):read("*a")
     lualib[#lualib+1] = string.format("[%q]=lstring(%q),", v:gsub('.lua$','')
-                                                            :gsub('/','.'), serialize(load(c)))
+                                                            :gsub('/','.'), serialize(loadbc(c)))
   end
 end
 
@@ -68,7 +76,7 @@ local out = string.format([[
 #include <stdint.h>
 uint8_t lem_lualib_preamble[] = {
 %s]],
-                        serialize(load(table.concat(lualib, '')))
+                        serialize(loadbc(table.concat(lualib, '')))
                         :gsub(".", function (m)
                           c = c + 1
                           if c % 20 == 0 then

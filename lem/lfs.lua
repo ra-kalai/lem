@@ -70,8 +70,13 @@ function lfs.glob(path, kind)
 	for i, cdir in pairs(folder) do
 
 		if cdir:match('%*') then
-			for name in lfs.dir(dirpath) do
-				if name ~= '.'  and
+
+			local dir_iter, k = lfs.dir(dirpath)
+
+			repeat
+				name = dir_iter(k)
+				if name and
+					 name ~= '.'  and
 					 name ~= '..' then
 
 					if name:match(cdir:gsub("%*",".*"):gsub('/','')) then
@@ -100,7 +105,7 @@ function lfs.glob(path, kind)
 						leave_first_loop = true
 					end
 				end
-			end
+			until name == nil
 		else
 			dirpath = dirpath .. cdir
 		end

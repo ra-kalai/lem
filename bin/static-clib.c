@@ -35,6 +35,28 @@ static const luaL_Reg lem_loadedlibs[] = {
 	{NULL, NULL}
 };
 
+#if LUA_VERSION_NUM == 501
+void luaL_requiref(lua_State *L, const char *modname, lua_CFunction openf, int glb) {
+	luaL_checkstack(L, 3, "not enough stack slots available");
+	lua_pushstring(L, "_LOADED");
+	lua_gettable(L, LUA_REGISTRYINDEX);
+	lua_getfield(L, -1, modname);
+	if (lua_isnil(L, -1)) {
+		lua_pop(L, 1);
+		lua_pushcfunction(L, openf);
+		lua_pushstring(L, modname);
+		lua_call(L, 1, 1);
+		lua_pushvalue(L, -1);
+		lua_setfield(L, -3, modname);
+	}
+	if (glb) {
+		lua_pushvalue(L, -1);
+		lua_setglobal(L, modname);
+	}
+	lua_replace(L, -2);
+}
+#endif
+
 
 static void load_lem_libs(lua_State *L) {
 	const luaL_Reg *lib;

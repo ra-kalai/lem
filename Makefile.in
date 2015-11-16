@@ -168,4 +168,4 @@ install: \
 	$(clibs:%=$(DESTDIR)$(cmoddir)/%)
 
 clean:
-	rm -f bin/lem bin/*.o lem/*/core.so.o lem/utils.so.o $(clibs) lua/luaconf.h lem.pc bin/static-llib.c
+	rm -f bin/lem bin/lem-s bin/*.o lem/*/core.so.o lem/utils.so.o $(clibs) lua/luaconf.h lem.pc bin/static-llib.c
