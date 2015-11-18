@@ -22,6 +22,7 @@
 #include <../lem/http/core.c>
 #include <../lem/lfs/core.c>
 #include <../lem/io/core.c>
+#include <../lem/os/core.c>
 #include <../lem/parsers/core.c>
 #include <../lem/utils.c>
 
@@ -32,6 +33,7 @@ static const luaL_Reg lem_loadedlibs[] = {
 	{"lem.http.core", luaopen_lem_http_core},
 	{"lem.lfs.core", luaopen_lem_lfs_core},
 	{"lem.io.core", luaopen_lem_io_core},
+	{"lem.os.core", luaopen_lem_os_core},
 	{NULL, NULL}
 };
 
