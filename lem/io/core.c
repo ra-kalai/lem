@@ -370,7 +370,7 @@ io_fromfd(lua_State *T)
 /*
  * io.popen()
  */
-static const char *const io_popen_modes[] = { "r", "w", "rw", NULL };
+static const char *const io_popen_modes[] = { "r", "w", "rw", "3s", NULL };
 
 static int
 io_popen(lua_State *T)
@@ -379,9 +379,9 @@ io_popen(lua_State *T)
 	int mode = luaL_checkoption(T, 2, "r", io_popen_modes);
 	char *const argv[4] = { "/bin/sh", "-c", (char *)cmd, NULL };
 	posix_spawn_file_actions_t fa;
-	int fd[2];
+	int fd[6];
 	pid_t pid;
-	int err;
+	int err = 0;
 
 	switch (mode) {
 	case 0: /* "r" */
@@ -409,9 +409,50 @@ io_popen(lua_State *T)
 		posix_spawn_file_actions_adddup2(&fa, fd[1], 1);
 		posix_spawn_file_actions_addclose(&fa, fd[1]);
 		break;
+	case 3: /* "3s" */
+		{
+			int i;
+			for ( i = 0; i < 6; i += 2)
+				if (pipe(fd+i)) {
+					err = 1;
+					break;
+				}
+
+			if (err) {
+				int old_errno = errno;
+				for ( i -= 2; i >= 0; i -= 2) {
+					close((fd+i)[0]),
+					close((fd+i)[1]);
+				}
+
+				return io_strerror(T, old_errno);
+			}
+		}
+
+		err = fd[0];
+		fd[0] = fd[1];
+		fd[1] = err;
+
+		posix_spawn_file_actions_init(&fa);
+		posix_spawn_file_actions_adddup2(&fa, fd[1], 0);
+		posix_spawn_file_actions_adddup2(&fa, fd[3], 1);
+		posix_spawn_file_actions_adddup2(&fa, fd[5], 2);
+		posix_spawn_file_actions_addclose(&fa, fd[1]);
+		posix_spawn_file_actions_addclose(&fa, fd[3]);
+		posix_spawn_file_actions_addclose(&fa, fd[5]);
+
+		if (fcntl(fd[2], F_SETFD, FD_CLOEXEC) == -1 ||
+				fcntl(fd[2], F_SETFL, O_NONBLOCK) == -1 ||
+				fcntl(fd[4], F_SETFD, FD_CLOEXEC) == -1 ||
+				fcntl(fd[4], F_SETFL, O_NONBLOCK) == -1) {
+			err = errno;
+			goto error;
+		}
+
+		break;
 	}
 
-	/* set our socket flags */
+	/* set our fd flags */
 	if (fcntl(fd[0], F_SETFD, FD_CLOEXEC) == -1 ||
 			fcntl(fd[0], F_SETFL, O_NONBLOCK) == -1) {
 		err = errno;
@@ -424,14 +465,39 @@ io_popen(lua_State *T)
 		goto error;
 
 	posix_spawn_file_actions_destroy(&fa);
-	close(fd[1]);
-	stream_new(T, fd[0], lua_upvalueindex(1));
-	lua_pushinteger(T, pid);
+
+	if (mode == 3) {
+		close(fd[1]);
+		close(fd[3]);
+		close(fd[5]);
+
+		lua_newtable(T);
+		stream_new(T, fd[0], lua_upvalueindex(1));
+		lua_setfield(T, -2, "stdin");
+		stream_new(T, fd[2], lua_upvalueindex(1));
+		lua_setfield(T, -2, "stdout");
+		stream_new(T, fd[4], lua_upvalueindex(1));
+		lua_setfield(T, -2, "stderr");
+
+		lua_pushinteger(T, pid);
+	} else {
+		close(fd[1]);
+
+		stream_new(T, fd[0], lua_upvalueindex(1));
+		lua_pushinteger(T, pid);
+	}
+
 	return 2;
 error:
 	posix_spawn_file_actions_destroy(&fa);
 	close(fd[0]);
 	close(fd[1]);
+	if (mode == 3) {
+		close(fd[2]);
+		close(fd[3]);
+		close(fd[4]);
+		close(fd[5]);
+	}
 	return io_strerror(T, err);
 }
 
