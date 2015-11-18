@@ -18,6 +18,8 @@
  */
 
 #include <lem.h>
+#include <signal.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <assert.h>
@@ -303,6 +305,21 @@ signal_tostring(lua_State *T)
 }
 
 static int
+signal_map(lua_State *T)
+{
+	unsigned int i;
+	/* signal table */
+	lua_newtable(T);
+	for (i = 0; i < ARRAYLEN(sigmap); i++) {
+		struct signal_mapping *sig = &sigmap[i];
+		lua_pushinteger(T, sig->no);
+		lua_setfield(T, -2, sig->name);
+	}
+
+	return 1;
+}
+
+static int
 signal_sethandler(lua_State *T)
 {
 	int type;
@@ -349,6 +366,24 @@ signal_unwatch(lua_State *T)
 	return signal_os_unwatch(T, sig);
 }
 
+static int
+signal_kill(lua_State *T)
+{
+	int pid = luaL_checkinteger(T, 1);
+	int sig = luaL_checkinteger(T, 2);
+	int ret;
+
+	ret = kill(pid, sig);
+
+	if (ret == 0) {
+		lua_pushboolean(T, 1);
+		return 1;
+	}
+	lua_pushnil(T);
+	lua_pushfstring(T, "kill error: %s", strerror(errno));
+	return 2;
+}
+
 int
 luaopen_lem_signal_core(lua_State *T)
 {
@@ -364,6 +399,9 @@ luaopen_lem_signal_core(lua_State *T)
 	/* create module table */
 	lua_newtable(T);
 
+	/* set signal_map function */
+	lua_pushcfunction(T, signal_map);
+	lua_setfield(T, -2, "signal_map");
 	/* set tonumber function */
 	lua_pushcfunction(T, signal_tonumber);
 	lua_setfield(T, -2, "tonumber");
@@ -379,6 +417,9 @@ luaopen_lem_signal_core(lua_State *T)
 	/* set unwatch function */
 	lua_pushcfunction(T, signal_unwatch);
 	lua_setfield(T, -2, "unwatch");
+	/* set kill function */
+	lua_pushcfunction(T, signal_kill);
+	lua_setfield(T, -2, "kill");
 
 	return 1;
 }

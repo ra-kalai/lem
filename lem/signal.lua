@@ -87,6 +87,8 @@ end
 
 local M = {}
 M.lookup = lookup
+M.kill = core.kill
+M.signal_map = core.signal_map
 
 function M.register(signal, func)
 	assert(type(signal) == 'string', 'signal should be a string')
