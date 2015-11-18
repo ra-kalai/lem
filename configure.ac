@@ -79,7 +79,7 @@ AS_IF([test "x$with_lua" = 'xbuiltin'],
   [AC_SEARCH_LIBS([sin], [m])]
   [AC_SEARCH_LIBS([dlopen], [dl])]
   [objects="bin/lua.o $objects"]
-  [objects_static="bin/lua.o $objects"]
+  [objects_static="bin/lua.o $objects_static"]
   [headers="luaconf.h lua.h lauxlib.h $headers"]
   [CPPFLAGS_ADD="$CPPFLAGS_ADD -Ilua"]
   [Lua_CFLAGS='']
