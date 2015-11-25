@@ -325,9 +325,10 @@ queue_file(int argc, char *argv[], int fidx)
 		lua_load_ret = luaL_loadbuffer(T, lem_load_repl, strlen(lem_load_repl), "load_repl");
 
 		goto after_repl_load;
-#endif
 
-		filename = "lem/repl.lua";
+#else
+		filename = LEM_LDIR "lem/repl.lua";
+#endif
 	}
 
 	lua_load_ret = luaL_loadfile(T, filename);
