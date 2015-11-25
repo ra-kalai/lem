@@ -25,8 +25,17 @@ struct tcp_getaddr {
 	lua_State *T;
 	const char *node;
 	const char *service;
-	int sock;
-	int err;
+	union {
+		int sock;
+		struct {
+			unsigned int family : 4;
+			unsigned int bind_port : 16;
+		};
+	};
+	union {
+		int err;
+		const char *bind_addr;
+	};
 };
 
 static const int tcp_famnumber[] = { AF_UNSPEC, AF_INET, AF_INET6 };
@@ -38,7 +47,7 @@ tcp_connect_work(struct lem_async *a)
 	struct tcp_getaddr *g = (struct tcp_getaddr *)a;
 	struct addrinfo hints = {
 		.ai_flags     = 0,
-		.ai_family    = tcp_famnumber[g->sock],
+		.ai_family    = tcp_famnumber[g->family],
 		.ai_socktype  = SOCK_STREAM,
 		.ai_protocol  = IPPROTO_TCP,
 		.ai_addrlen   = 0,
@@ -48,7 +57,22 @@ tcp_connect_work(struct lem_async *a)
 	};
 	struct addrinfo *result;
 	struct addrinfo *addr;
+	struct addrinfo *bind_addr = NULL;
 	int sock;
+
+	if (g->bind_addr != NULL) {
+		char port[8];
+		hints.ai_flags = AI_PASSIVE;
+		snprintf(port, sizeof port, "%d", g->bind_port);
+		sock = getaddrinfo(g->bind_addr, port, &hints, &bind_addr);
+
+		if (sock) {
+			g->sock = -5;
+			g->err = sock;
+			return;
+		}
+		hints.ai_flags = 0;
+	}
 
 	/* lookup name */
 	sock = getaddrinfo(g->node, g->service, &hints, &result);
@@ -84,6 +108,14 @@ tcp_connect_work(struct lem_async *a)
 			goto error;
 		}
 #endif
+
+		if (bind_addr != NULL)
+		if (bind(sock, bind_addr->ai_addr, bind_addr->ai_addrlen)) {
+			g->sock = -4;
+			g->err = errno;
+			goto error;
+		}
+
 		/* connect */
 		if (connect(sock, addr->ai_addr, addr->ai_addrlen)) {
 			close(sock);
@@ -128,6 +160,7 @@ tcp_connect_reap(struct lem_async *a)
 
 	lua_pushnil(T);
 	switch (-sock) {
+	case 5:
 	case 1:
 		lua_pushfstring(T, "error looking up '%s:%s': %s",
 				g->node, g->service, gai_strerror(g->err));
@@ -140,6 +173,9 @@ tcp_connect_reap(struct lem_async *a)
 		lua_pushfstring(T, "error connecting to '%s:%s'",
 				g->node, g->service);
 		break;
+	case 4:
+		lua_pushfstring(T, "bind error");
+		break;
 	}
 	free(g);
 	lem_queue(T, 2);
@@ -151,13 +187,30 @@ tcp_connect(lua_State *T)
 	const char *node = luaL_checkstring(T, 1);
 	const char *service = luaL_checkstring(T, 2);
 	int family = luaL_checkoption(T, 3, "any", tcp_famnames);
+	int argt;
 	struct tcp_getaddr *g;
 
-	g = lem_xmalloc(sizeof(struct tcp_getaddr));
+	g = lem_xmalloc(sizeof *g);
 	g->T = T;
 	g->node = node;
 	g->service = service;
-	g->sock = family;
+	g->family = family;
+
+	argt = lua_type(T, 4);
+	if (argt == LUA_TSTRING) {
+		g->bind_addr = lua_tostring(T, 4);
+	} else {
+		g->bind_addr = NULL;
+	}
+
+	argt = lua_type(T, 5);
+	if (argt == LUA_TSTRING ||
+			argt == LUA_TNUMBER) {
+		g->bind_port = lua_tointeger(T, 5);
+	} else {
+		g->bind_port = 0;
+	}
+
 	lem_async_do(&g->a, tcp_connect_work, tcp_connect_reap);
 
 	lua_settop(T, 2);
