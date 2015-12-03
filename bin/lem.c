@@ -30,6 +30,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <pthread.h>
+#include <libgen.h>
 
 #include <lem.h>
 #include <lualib.h>
@@ -317,25 +318,28 @@ queue_file(int argc, char *argv[], int fidx)
 	int i;
 	int lua_load_ret;
 
-	if (fidx < argc)
-		filename = argv[fidx];
-	else {
-#ifdef STATIC_LEM
-		const char lem_load_repl[] = "require('lem.repl')";
-		lua_load_ret = luaL_loadbuffer(T, lem_load_repl, strlen(lem_load_repl), "load_repl");
-
-		goto after_repl_load;
-
-#else
-		filename = LEM_LDIR "lem/repl.lua";
-#endif
+	lua_createtable(T, argc, 0);
+	for (i = 0; i < argc; i++) {
+		lua_pushstring(T, argv[i]);
+		lua_rawseti(T, -2, i - fidx);
 	}
+	lua_setglobal(T, "arg");
+
+	//if (fidx < argc)
+	//	filename = argv[fidx];
+	//else {
+#ifdef STATIC_LEM
+		goto after_repl_load;
+#else
+		if (strcmp(basename(argv[0]), "local-lem")==0) {
+			filename =  "lem/cmd.lua";
+		} else {
+			filename =  LEM_LDIR  "lem/cmd.lua";
+		}
+#endif
+	//}
 
 	lua_load_ret = luaL_loadfile(T, filename);
-
-#ifdef STATIC_LEM
-	after_repl_load:
-#endif
 
 	switch (lua_load_ret) {
 	case LUA_OK: /* success */
@@ -349,12 +353,26 @@ queue_file(int argc, char *argv[], int fidx)
 		return -1;
 	}
 
-	lua_createtable(T, argc, 0);
-	for (i = 0; i < argc; i++) {
-		lua_pushstring(T, argv[i]);
-		lua_rawseti(T, -2, i - fidx);
+#ifdef STATIC_LEM
+	after_repl_load:
+#endif
+
+	{
+		const char lem_load_repl[] = "require('lem.cmd').lem_main()";
+		lua_load_ret = luaL_loadbuffer(T, lem_load_repl, strlen(lem_load_repl), "load_repl");
 	}
-	lua_setglobal(T, "arg");
+
+	switch (lua_load_ret) {
+	case LUA_OK: /* success */
+		break;
+
+	case LUA_ERRMEM:
+		oom();
+
+	default:
+		lem_log_error("lem: %s", lua_tostring(T, 1));
+		return -1;
+	}
 
 	lem_queue(T, 0);
 	return 0;

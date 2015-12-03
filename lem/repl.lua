@@ -90,18 +90,6 @@ local function repl(name, ins, outs)
 	end
 end
 
--- if not run directly just return the module table
-if not arg or arg[0] then
-	return { repl = repl }
-end
-
-local io = require 'lem.io'
-
-io.stdout:write([[
-A Lua Event Machine 0.3  Copyright 2011-2013 Emil Renner Berthing
-]])
-
-local _, err = repl('stdin', io.stdin, io.stdout)
-print(err or '')
+return { repl = repl }
 
 -- vim: ts=2 sw=2 noet:

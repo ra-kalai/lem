@@ -87,7 +87,7 @@ uint8_t lem_lualib_preamble[] = {
                         end) ..
                         '};')
 
-
-print(out)
+local out_file = io.open(arg[1], "w")
+out_file:write(out)
 
 -- vim: syntax=lua ts=2 sw=2 noet:

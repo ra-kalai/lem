@@ -26,6 +26,7 @@ objects      = @objects@
 objects_static      = @objects_static@
 
 llibs = \
+	lem/cmd.lua \
 	lem/repl.lua \
 	lem/parsers.lua \
 	lem/io.lua \
@@ -68,7 +69,7 @@ endif
 
 .PHONY: all strip install clean
 
-all: bin/lem lem.pc $(clibs) bin/lem-s
+all: bin/lem bin/local-lem lem.pc $(clibs) bin/lem-s
 
 debug: bin/lem lem.pc $(clibs)
 
@@ -95,9 +96,13 @@ bin/lem: $(objects)
 	$E '  LD    $@'
 	$Q$(CC) $^ -o $@ -rdynamic $(LDFLAGS) $(LIBS)
 
-bin/static-llib.c: bin/lem $(llibs)
+bin/local-lem: bin/lem
+	$E '  LN    $@'
+	ln -s lem bin/local-lem
+
+bin/static-llib.c: bin/local-lem $(llibs)
 	$E '  LUA-TO-C    $@'
-	./bin/lem bin/pack-llib.lua > bin/static-llib.c
+	./bin/local-lem bin/pack-llib.lua bin/static-llib.c
 
 bin/lem-s.o: CPPFLAGS += -DSTATIC_LEM
 bin/lem-s.o: CPPFLAGS += -D'LEM_LDIR="$(lmoddir)/"' 
