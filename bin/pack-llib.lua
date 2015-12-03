@@ -47,8 +47,13 @@ lualib[#lualib+1] = [==[
 ]==]
 local c
 
-for i, path in pairs({'lem/*/*.lua','lem/*.lua'}) do
+local debug = os.getenv('V')
+
+for i, path in pairs({'lem/*/*.lua$','lem/*.lua$'}) do
   for i, v in pairs(glob(path)) do
+    if debug then
+      io.stderr:write('packing: ' .. v .. ' \n')
+    end
     c = io.open(v):read("*a")
     lualib[#lualib+1] = string.format("[%q]=lstring(%q),", v:gsub('.lua$','')
                                                             :gsub('/','.'), serialize(loadbc(c)))

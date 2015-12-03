@@ -26,8 +26,8 @@ local M = {}
 M.parse_arg = function (args, argv, start)
 	start = start or 1
 	argv = argv or {}
-	local ret = {self_exe = argv[0]}
-	local err = false
+	local ret = {self_exe = argv[0], last_arg = {}}
+	local err
 
 	local pmap = {}
 	for i, v in pairs(args.possible) do
@@ -42,12 +42,13 @@ M.parse_arg = function (args, argv, start)
 		local carg = argv[i]
 		local argtry = carg
 
-		if #carg > 1 then
+		if argtry ~= '-' and argtry ~= '--' and #argtry>1 then
 			argtry = carg:sub(2)
 		end
 
-		if err==false and pmap[argtry] ~= nil then
+		if ret['--']==nil and pmap[argtry] ~= nil then
 			local key = pmap[argtry][2]
+
 			if (pmap[argtry][3].type == 'counter') then
 				ret[key] = ret[key] or 0
 				ret[key] = ret[key] + 1
@@ -56,27 +57,43 @@ M.parse_arg = function (args, argv, start)
 				ret[key][#ret[key]+1] = argv[i+1]
 				i = i + 1
 			end
+		elseif #ret.last_arg == 0 and carg == '-' or carg == '--' then
+			ret[carg] = true
 		else
-			err = true
-			ret.last_arg = ret.last_arg or {}
+			if #ret.last_arg == 0 then
+				if ret['--'] == nil and carg:match("^-") then
+					err = carg
+					break
+				end
+			end
+
 			ret.last_arg[last_arg_idx] = carg
 			last_arg_idx = last_arg_idx + 1
 		end
-	i = i + 1
+
+		i = i + 1
 	end
 
-	for i, v in pairs(args.possible) do
-		if v[3].default_value ~= nil and ret[v[2]] == nil then
-			ret[v[2]] = {v[3].default_value}
+	if err == nil then
+		for i, v in pairs(args.possible) do
+			if v[3].default_value ~= nil and ret[v[2]] == nil then
+				ret[v[2]] = {v[3].default_value}
+			end
 		end
 	end
+
+	ret.err = err
 
 	return ret
 end
 
+local function stderr_print(...)
+	io.stderr:write(format(...))
+end
+
 M.display_usage= function (args, err)
-	if err.last_arg then
-		io.stderr:write(format("unexpected argument: %s\n", table.concat(err.last_arg, ' ')))
+	if err.err then
+		stderr_print("unrecognized option: '%s'\n", err.err)
 	end
 
 	local max_arg_len = 0
@@ -90,9 +107,9 @@ M.display_usage= function (args, err)
 	if args.last_arg ~= "" then
 		args.last_arg = " " .. args.last_arg
 	end
-	io.stderr:write(format("usage: %s%s\n", err.self_exe, args.last_arg))
+	stderr_print("usage: %s%s\n", err.self_exe, args.last_arg)
 	if args.intro then
-		io.stderr:write(args.intro..'\n')
+		stderr_print(args.intro .. '\n')
 	end
 
 	for i, v in pairs(args.possible) do
@@ -104,14 +121,11 @@ M.display_usage= function (args, err)
 			max_arg_len = max_arg_len + 1
 		end
 
-	io.stderr:write(format("  %s %-" .. (max_arg_len+1) .. "s %s\n",
-				v[1],
-				v[2],
-				v[3].desc or ""))
+	stderr_print("  %s %-" .. (max_arg_len+1) .. "s %s\n", v[1], v[2], v[3].desc or "")
 
 	end
   
-os.exit(1)
+	os.exit(1)
 end
 
 
@@ -119,7 +133,8 @@ M.lem_main = function ()
 	M.lem_main = nil
 
 	local LEM_VERSION = format("A Lua Event Machine 0.4 (%s) Copyright (C) 2011-2015 Emil Renner Berthing\n", _VERSION)
-  
+
+	local io = require 'lem.io'
 	local function start_repl() 
 		local r = require 'lem.repl'
 		local _, err = r.repl('stdin', io.stdin, io.stdout)
@@ -142,16 +157,21 @@ M.lem_main = function ()
 				{'e', 'stat', {desc="Execute string 'stat'"}},
 				{'i', 'interactive', {desc="Enter interactive mode after executing 'script'", type='counter'}},
 				{'v', 'version', {desc="Show version information", type='counter'}},
-				{'b', 'bytecode', {desc="Output bytecode to stdout", type='counter'}},
+				{'b', 'bytecode', {desc="Output bytecode to stdout"}},
 				{'-', '-', {desc="Execute stdin", type='counter'}},
 			},
 		}
 
-		local parg, err = M.parse_arg(args, arg, 0)
+		local parg = M.parse_arg(args, arg, 0)
 
 		local load = load
 		if _VERSION == 'Lua 5.1' then
 			load = loadstring
+		end
+
+		if parg.err then
+			parg.self_exe = arg[-1]
+			M.display_usage(args, parg)
 		end
 
 		if (parg.help and
@@ -178,14 +198,15 @@ M.lem_main = function ()
 			pcall(load(io.stdin:read("*a")))
 		end
 
-		if (parg.bytecode and parg.bytecode > 0) then
-			for i, script_to_convert in pairs(parg.script_to_run) do
-				local file = io.open(parg.script_to_convert)
+		if (parg.bytecode and #parg.bytecode > 0) then
+			for i, script_to_convert in pairs(parg.bytecode) do
+				local file = io.open(script_to_convert)
 				assert(file, "could not open file " .. script_to_convert)
 				file = file:read("*a")
 				script_load, err = load(file)
-				assert(err ~= nil, 'could not load file ' .. script_to_convert)
-				print(string.dump())
+				assert(err == nil, 'could not load file ' .. script_to_convert)
+				print(string.dump(script_load))
+
 				os.exit(0);
 			end
 		end
