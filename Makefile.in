@@ -98,7 +98,7 @@ bin/lem: $(objects)
 
 bin/local-lem: bin/lem
 	$E '  LN    $@'
-	ln -s lem bin/local-lem
+	ln -sf lem bin/local-lem
 
 bin/static-llib.c: bin/local-lem $(llibs)
 	$E '  LUA-TO-C    $@'
@@ -175,4 +175,4 @@ install: \
 	$(clibs:%=$(DESTDIR)$(cmoddir)/%)
 
 clean:
-	rm -f bin/lem bin/lem-s bin/*.o lem/*/core.so.o lem/utils.so.o $(clibs) lua/luaconf.h lem.pc bin/static-llib.c
+	rm -f bin/lem bin/local-lem bin/lem-s bin/*.o lem/*/core.so.o lem/utils.so.o $(clibs) lua/luaconf.h lem.pc bin/static-llib.c
