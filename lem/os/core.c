@@ -16,10 +16,15 @@
  * License along with LEM.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <unistd.h>
+#include <stdlib.h>
 #include <sys/wait.h>
 #include <errno.h>
 #include <string.h>
 
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
 #if defined(__FreeBSD__) || defined(__APPLE__)
 #include <sys/types.h>
 #endif
@@ -122,6 +127,75 @@ os_waitpid(lua_State *T)
 	return lua_yield(T, 0);
 }
 
+static int
+os_getpid(lua_State *T)
+{
+	lua_pushinteger(T, getpid());
+	return 1;
+}
+
+static int
+os_getppid(lua_State *T)
+{
+	lua_pushinteger(T, getppid());
+	return 1;
+}
+
+static int
+os_setpgrp(lua_State *T)
+{
+	lua_pushinteger(T, setpgrp());
+	return 1;
+}
+
+static int
+os_setproctitle(lua_State *T)
+{
+	size_t len;
+	const char *proc_title = lua_tolstring(T, 1, &len);
+
+#if defined(__FreeBSD__) || defined(__APPLE__)
+	setproctitle(proc_title);
+#else
+	static int size;
+	static char **__initial_main_environ = NULL;
+
+	if (__initial_main_environ == NULL) {
+		__initial_main_environ = __lem_main_environ;
+	}
+
+	int env_len = -1;
+
+	if (__lem_main_environ)
+		while (__lem_main_environ[++env_len]);
+
+	if (env_len > 0) {
+		size = __initial_main_environ[env_len-1] + strlen(__initial_main_environ[env_len-1]) - __lem_main_argv[0];
+	} else {
+		size = strlen(__lem_main_argv[0]);
+		return 1;
+	}
+
+	/* just leak some memory in case someone didn't dup an environment variable */
+	if (__lem_main_environ) {
+		char **new_environ = lem_xmalloc((env_len+1)*sizeof(char *));
+		new_environ[env_len] = NULL;
+		int i = -1;
+
+		while (__lem_main_environ[++i])
+			new_environ[i] = strdup(__lem_main_environ[i]);
+
+		__lem_main_environ = new_environ;
+	}
+
+	__lem_main_argv[0][size] = 0;
+	snprintf(__lem_main_argv[0], size, "%s", proc_title);
+                              
+	prctl(PR_SET_NAME, __lem_main_argv[0], 0, 0, 0);
+#endif
+	return 0;
+}
+
 int
 luaopen_lem_os_core(lua_State *L)
 {
@@ -131,6 +205,22 @@ luaopen_lem_os_core(lua_State *L)
 	/* insert the os.waitpid function */
 	lua_pushcfunction(L, os_waitpid);
 	lua_setfield(L, -2, "waitpid");
+
+	/* insert the os.getpid function */
+	lua_pushcfunction(L, os_getpid);
+	lua_setfield(L, -2, "getpid");
+
+	/* insert the os.getppid function */
+	lua_pushcfunction(L, os_getppid);
+	lua_setfield(L, -2, "getppid");
+
+	/* insert the os.setpgrp function */
+	lua_pushcfunction(L, os_setpgrp);
+	lua_setfield(L, -2, "setpgrp");
+
+	/* insert the os.setproctitle function */
+	lua_pushcfunction(L, os_setproctitle);
+	lua_setfield(L, -2, "setproctitle");
 
 	lua_newtable(L);
 	lua_pushinteger(L, WCONTINUED);

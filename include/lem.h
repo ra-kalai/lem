@@ -81,6 +81,10 @@ void lem_async_run(struct lem_async *a);
 void lem_async_config(int delay, int min, int max);
 lua_State* lem_get_global_lua_state();
 
+extern char **__lem_main_environ;
+extern char **__lem_main_argv;
+extern int __lem_main_argc;
+
 static inline void
 lem_async_do(struct lem_async *a,
 		void (*work)(struct lem_async *a),

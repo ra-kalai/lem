@@ -19,8 +19,8 @@
 local os 		 = require 'os'
 local lem_os = require 'lem.os.core'
 
-for _, v in pairs({'waitpid', 'waitpid_options'}) do
-	os[v] = lem_os[v]
+for k, v in pairs(lem_os) do
+	os[k] = v
 end
 
 return os

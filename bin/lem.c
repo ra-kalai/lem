@@ -59,6 +59,12 @@
 #define LEM_INITIAL_QUEUESIZE 8 /* this must be a power of 2 */
 #define LEM_THREADTABLE 1
 
+int __lem_main_argc;
+char **__lem_main_argv;
+char **__lem_main_environ;
+
+extern char **environ;
+
 struct lem_runqueue_slot {
 	lua_State *T;
 	int nargs;
@@ -390,6 +396,11 @@ runqueue_wait_init(void)
 int
 main(int argc, char *argv[])
 {
+
+  __lem_main_environ = environ;
+  __lem_main_argc = argc;
+  __lem_main_argv = argv;
+
 	lem_loop = ev_default_loop(LEM_LOOPFLAGS);
 	if (lem_loop == NULL) {
 		lem_log_error("lem: error initializing event loop");

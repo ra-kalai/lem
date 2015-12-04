@@ -36,7 +36,7 @@
 #include <sys/un.h>
 #include <sys/ucred.h>
 #include <netinet/in.h>
-extern char **environ;
+extern char **__lem_main_environ;
 #else
 #include <sys/un.h>
 #include <sys/sendfile.h>
@@ -459,7 +459,7 @@ io_popen(lua_State *T)
 		goto error;
 	}
 
-	err = posix_spawn(&pid, argv[0], &fa, NULL, argv, environ);
+	err = posix_spawn(&pid, argv[0], &fa, NULL, argv, __lem_main_environ);
 	lem_debug("err = %d, %s", err, strerror(err));
 	if (err)
 		goto error;
