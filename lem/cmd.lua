@@ -230,7 +230,10 @@ M.lem_main = function ()
 			local script_to_run_filepath = parg.last_arg[0]
 			local script_to_run, err = loadfile(script_to_run_filepath)
 
-			assert(err==nil, 'could not loadfile ' .. script_to_run_filepath)
+			if err ~= nil then
+				stderr_print('could not loadfile %s\n%s\n', script_to_run_filepath, err)
+				os.exit(1)
+			end
 
 			parg.last_arg[-1] = arg[-1]
 			arg = parg.last_arg
