@@ -23,10 +23,30 @@ local format = string.format
 
 local M = {}
 
+local args_meta = {}
+
+args_meta.is_flag_set = function (self, arg)
+	if self[arg] then
+		return (self[arg] and self[arg] > 0)
+	else
+		return nil
+	end
+end
+
+args_meta.get_last_val = function (self, arg)
+	if self[arg] then
+		return self[arg][#self[arg]]
+	else
+		return nil
+	end
+end
+
+
 M.parse_arg = function (args, argv, start)
 	start = start or 1
 	argv = argv or {}
 	local ret = {self_exe = argv[0], last_arg = {}}
+	setmetatable(ret, {__index=args_meta})
 	local err
 
 	local pmap = {}
@@ -46,7 +66,7 @@ M.parse_arg = function (args, argv, start)
 			argtry = carg:sub(2)
 		end
 
-		if ret['--']==nil and pmap[argtry] ~= nil then
+		if ret['--']==nil and ret.last_arg[0]==nil and pmap[argtry] ~= nil then
 			local key = pmap[argtry][2]
 
 			if (pmap[argtry][3].type == 'counter') then
@@ -60,7 +80,7 @@ M.parse_arg = function (args, argv, start)
 		elseif #ret.last_arg == 0 and carg == '-' or carg == '--' then
 			ret[carg] = true
 		else
-			if #ret.last_arg == 0 then
+			if ret.last_arg[0] == nil then
 				if ret['--'] == nil and carg:match("^-") then
 					err = carg
 					break
@@ -174,19 +194,14 @@ M.lem_main = function ()
 			M.display_usage(args, parg)
 		end
 
-		if (parg.help and
-				parg.help > 0) then
+		if parg:is_flag_set('help') then
 			M.display_usage(args, {self_exe=arg[-1]})
 		end
 
-		if parg.interactive and parg.interactive >= 1 then
+		if parg:is_flag_set('interactive') then
 			io.stdout:write(LEM_VERSION)
 		end
 
-		if (parg.version and parg.version>0) then
-			io.stdout:write(LEM_VERSION)
-			os.exit(0)
-		end
 
 		if (parg.stat) then
 			for i, v in pairs(parg.stat) do
@@ -194,11 +209,11 @@ M.lem_main = function ()
 			end
 		end
 
-		if (parg['-'] and parg['-'] > 0) then
+		if parg:is_flag_set('-') then
 			pcall(load(io.stdin:read("*a")))
 		end
 
-		if (parg.bytecode and #parg.bytecode > 0) then
+		if parg:get_last_val('bytecode') then
 			for i, script_to_convert in pairs(parg.bytecode) do
 				local file = io.open(script_to_convert)
 				assert(file, "could not open file " .. script_to_convert)
@@ -222,8 +237,13 @@ M.lem_main = function ()
 			script_to_run()
 		end
 
-		if parg.interactive and parg.interactive >= 1 then
+		if parg:is_flag_set('interactive') then
 			start_repl()
+		end
+
+		if parg:is_flag_set('version') then
+			io.stdout:write(LEM_VERSION)
+			os.exit(0)
 		end
 	end
 end
