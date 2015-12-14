@@ -31,28 +31,18 @@ Hathaway.__index = Hathaway
 M.Hathaway = Hathaway
 
 function Hathaway:GET(path, handler)
+	self.lookup[path] = self.lookup[path] or {}
 	local entry = self.lookup[path]
-	if entry then
-		entry['HEAD'] = handler
-		entry['GET'] = handler
-	else
-		entry = {
-			['HEAD'] = handler,
-			['GET'] = handler,
-		}
-		self.lookup[path] = entry
-	end
+
+	entry.HEAD = handler
+	entry.GET  = handler
 end
 
 do
 	local function static_setter(method)
 		return function(self, path, handler)
-			local entry = self.lookup[path]
-			if entry then
-				entry[method] = handler
-			else
-				self.lookup[path] = { [method] = handler }
-			end
+			self.lookup[path] = self.lookup[path] or {}
+			self.lookup[path][method] = handler
 		end
 	end
 
@@ -65,21 +55,19 @@ end
 function Hathaway:GETM(pattern, handler)
 	local i = 1
 	while true do
-		local entry = self.lookup[i]
-		if entry == nil then
-			self.lookup[i] = { pattern,
-				['GET'] = handler,
-				['HEAD'] = handler
-			}
+		if not self.lookup_m[i] then
+			self.lookup_m[i] = {pattern}
 			break
-		end
-		if entry[1] == pattern then
-			entry['GET'] = handler
-			entry['HEAD'] = handler
+		elseif self.lookup_m[i][1] == pattern then
 			break
 		end
 		i = i + 1
 	end
+
+	local entry = self.lookup_m[i]
+
+	entry.HEAD = handler
+	entry.GET  = handler
 end
 
 do
@@ -87,17 +75,17 @@ do
 		return function(self, pattern, handler)
 			local i = 1
 			while true do
-				local entry = self.lookup[i]
-				if entry == nil then
-					self.lookup[i] = { pattern, [method] = handler }
+				if not self.lookup_m[i] then
+					self.lookup_m[i] = {pattern}
 					break
-				end
-				if entry[1] == pattern then
-					entry[method] = handler
+				elseif self.lookup_m[i][1] == pattern then
 					break
 				end
 				i = i + 1
 			end
+
+			local entry = self.lookup_m[i]
+			entry[method] = handler
 		end
 	end
 
@@ -112,10 +100,9 @@ local function check_match(entry, req, res, ok, ...)
 	local handler = entry[req.method]
 	if handler then
 		handler(req, res, ok, ...)
-	else
-		httpresp.method_not_allowed(req, res)
+		return true
 	end
-	return true
+	return false
 end
 
 local function handle(self, req, res)
@@ -123,6 +110,7 @@ local function handle(self, req, res)
 	self.debug('info', format("%s %s HTTP/%s", method, req.uri, req.version))
 	local lookup = self.lookup
 	local entry = lookup[path]
+
 	if entry then
 		local handler = entry[method]
 		if handler then
@@ -130,28 +118,41 @@ local function handle(self, req, res)
 		else
 			httpresp.method_not_allowed(req, res)
 		end
-	else
-		local i = 0
-		repeat
-			i = i + 1
-			local entry = lookup[i]
-			if not entry then
-				httpresp.not_found(req, res)
-				break
-			end
-		until check_match(entry, req, res, path:match(entry[1]))
+
+		return 
+	end
+
+	lookup = self.lookup_m
+	local fine = false
+
+	for i=1, #lookup do
+		entry = lookup[i]
+		if check_match(entry, req, res, path:match(entry[1])) then
+			fine = true
+			break
+		end
+	end
+
+	if not fine then
+		httpresp.method_not_allowed(req, res)
 	end
 end
+
 Hathaway.handle = handle
 
 function Hathaway:run(host, port)
 	local server, err
+
 	if port then
 		server, err = httpserv.new(host, port, self.handler)
 	else
 		server, err = httpserv.new(host, self.handler)
 	end
-	if not server then self.debug('new', err) return nil, err end
+
+	if not server then
+		self.debug('new', err)
+		return nil, err
+	end
 
 	self.server = server
 	server.debug = self.debug
@@ -185,11 +186,13 @@ end
 local function new()
 	local self = {
 		lookup = {},
+		lookup_m = {},
 		debug = M.debug
 	}
 	self.handler = function(...) return handle(self, ...) end
 	return setmetatable(self, Hathaway)
 end
+
 M.new = new
 
 function M.import(...)

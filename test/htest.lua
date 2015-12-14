@@ -149,6 +149,12 @@ GETM('^/hello/([^/]+)$', function(req, res, name)
 	res:add('Hello, %s!\n', name)
 end)
 
+POSTM('^/hello/([^/]+)$', function(req, res, name)
+	res.headers['Content-Type'] = 'text/plain'
+	local body = req:body()
+	res:add('Hello, %s!\n', body:match("name=(.*)$"))
+end)
+
 if arg[1] == 'socket' then
 	local sock = assert(io.unix.listen('socket', 666))
 	Hathaway(sock)
