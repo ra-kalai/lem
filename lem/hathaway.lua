@@ -24,6 +24,16 @@ local httpresp = require 'lem.http.response'
 
 local M = {}
 
+local urldecode = httpserv.urldecode
+M.urldecode = urldecode
+function M.parseform(str)
+	local t = {}
+	for k, v in str:gmatch('([^&]+)=([^&]*)') do
+		t[urldecode(k)] = urldecode(v)
+	end
+	return t
+end
+
 function M.debug() end
 
 local Hathaway = {}

@@ -164,31 +164,22 @@ function Response:contentlength()
 end
 
 function Response:appendheader(rope)
-	local size = 0
-	local line
+	local headers = self.headers
 	local i = 1
-	for k, v in pairs(self.headers) do
-		line = format('%s: %s\r\n', k, v)
+	local k = nil
+	k = next(headers, k)
+	while true do
+		if not k then
+			break
+		end
 		i = i + 1
-		rope[i] = line
-		size = size + #line
+		rope[i] = format('%s: %s\r\n', k, headers[k])
+
+		k = next(headers, k)
 	end
 	i = i + 1
 	rope[i] = '\r\n'
-	size = size + 2
-	return i, size
-end
-
-function Response:appendbody(rope, i, size)
-	size = size or 0
-	local chunk
-	for j = 1, #self do
-		chunk = self[j]
-		i = i + 1
-		rope[i] = chunk
-		size = size + #chunk
-	end
-	return i, size
+	return i
 end
 
 function M.new(req)

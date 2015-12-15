@@ -70,21 +70,11 @@ do
 	end
 end
 
-local function check_match(entry, req, res, ok, ...)
-	if not ok then return false end
-	local handler = entry[req.method]
-	if handler then
-		handler(req, res, ok, ...)
-	else
-		response.method_not_allowed(req, res)
-	end
-	return true
-end
-
 local urldecode = M.urldecode
 local newresponse = response.new
 
 local function handleHTTP(self, client)
+	local res
 	repeat
 		local req, err = client:read('HTTPRequest')
 		if not req then self.debug('read', err) break end
@@ -94,7 +84,7 @@ local function handleHTTP(self, client)
 		req.client = client
 		req.path = urldecode(uri:match('^([^?]*)'))
 
-		local res = newresponse(req)
+		res = newresponse(req)
 
 		if version ~= '1.0' and version ~= '1.1' then
 			response.version_not_supported(req, res)
@@ -105,25 +95,27 @@ local function handleHTTP(self, client)
 				response.expectation_failed(req, res)
 			else
 				self.handler(req, res)
+				if res.abort == true then
+					break
+				end
 			end
 		end
 
 		local headers = res.headers
-		local file, close = res.file, false
+		local file, close_file = res.file, false
 		if type(file) == 'string' then
 			file, err = io.open(file)
 			if file then
-				close = true
+				close_file = true
 			else
 				self.debug('open', err)
 				res = newresponse(req)
-				headers = res.headers
 				response.not_found(req, res)
 			end
 		end
 
 		if not res.status then
-			if #res == 0 and file == nil then
+			if #res == 0 and not file then
 				res.status = 204
 			else
 				res.status = 200
@@ -132,7 +124,7 @@ local function handleHTTP(self, client)
 
 		local body
 		local body_len
-		if headers['Content-Length'] == nil and res.status ~= 204 then
+		if not headers['Content-Length'] and res.status ~= 204 then
 			if file then
 				body_len = file:size()
 			else
@@ -143,24 +135,23 @@ local function handleHTTP(self, client)
 			headers['Content-Length'] = body_len
 		end
 
-		if headers['Date'] == nil then
+		if not headers['Date'] then
 			headers['Date'] = date('!%a, %d %b %Y %T GMT')
 		end
 
-		if headers['Server'] == nil then
+		if not headers['Server'] then
 			headers['Server'] = 'Hathaway/0.1 LEM/0.3'
 		end
 
-		if req.headers['connection'] == 'close' and headers['Connection'] == nil then
+		if req.headers['connection'] == 'close' and
+			 not headers['Connection'] then
 			headers['Connection'] = 'close'
 		end
 
 		local rope = {}
 		do
 			local status = res.status
-			if type(status) == 'number' then
-				status = response.status_string[status]
-			end
+			status = response.status_string[status]
 
 			rope[1] = format('HTTP/%s %s\r\n', version, status)
 		end
@@ -175,7 +166,7 @@ local function handleHTTP(self, client)
 		if method ~= 'HEAD' then
 			if file then
 				ok, err = client:sendfile(file, headers['Content-Length'])
-				if close then file:close() end
+				if close_file then file:close() end
 			else
 				if body_len > 0 then
 					ok, err = client:write(body)

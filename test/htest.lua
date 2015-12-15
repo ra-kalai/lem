@@ -25,6 +25,9 @@ local utils    = require 'lem.utils'
 local io       = require 'lem.io'
 local hathaway = require 'lem.hathaway'
 
+local urldecode =  hathaway.urldecode
+local parseform = hathaway.parseform
+
 hathaway.debug = print -- must be set before import()
 hathaway.import()      -- when using single instance API
 
@@ -100,19 +103,6 @@ GET('/dump', function(req, res)
 ]])
 end)
 
-local function urldecode(str)
-	return str:gsub('+', ' '):gsub('%%(%x%x)', function (str)
-		return string.char(tonumber(str, 16))
-	end)
-end
-
-local function parseform(str)
-	local t = {}
-	for k, v in str:gmatch('([^&]+)=([^&]*)') do
-		t[urldecode(k)] = urldecode(v)
-	end
-	return t
-end
 
 POST('/form', function(req, res)
 	res.headers['Content-Type'] = 'text/plain'
