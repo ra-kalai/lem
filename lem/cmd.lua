@@ -66,7 +66,7 @@ M.parse_arg = function (args, argv, start)
 			argtry = carg:sub(2)
 		end
 
-		if ret['--']==nil and ret.last_arg[0]==nil and pmap[argtry] ~= nil then
+		if ret['--'] == nil and ret.last_arg[0] == nil and pmap[argtry] ~= nil then
 			local key = pmap[argtry][2]
 
 			if (pmap[argtry][3].type == 'counter') then
@@ -77,8 +77,9 @@ M.parse_arg = function (args, argv, start)
 				ret[key][#ret[key]+1] = argv[i+1]
 				i = i + 1
 			end
-		elseif #ret.last_arg == 0 and carg == '-' or carg == '--' then
-			ret[carg] = true
+		elseif ret.last_arg[0] == nil and (carg == '-' or carg == '--') then
+			ret[carg] = ret[carg] or 0
+			ret[carg] = ret[carg] + 1
 		else
 			if ret.last_arg[0] == nil then
 				if ret['--'] == nil and carg:match("^-") then
