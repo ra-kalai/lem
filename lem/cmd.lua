@@ -149,6 +149,20 @@ M.display_usage= function (args, err)
 	os.exit(1)
 end
 
+if command_chain then
+	M.lem_main = function ()
+		local arg2 = {}
+		arg2[-1] = arg[-1]
+		for i = 0, #arg do
+			arg2[i+1] = arg[i]
+		end
+		arg2[0] = command_chain[1]
+		arg = arg2
+		utils.spawn(command_chain[2])
+		command_chain = nil
+	end
+	return M
+end
 
 M.lem_main = function ()
 	M.lem_main = nil
