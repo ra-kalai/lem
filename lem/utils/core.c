@@ -220,7 +220,7 @@ utils_poolconfig(lua_State *T)
 }
 
 int
-luaopen_lem_utils(lua_State *L)
+luaopen_lem_utils_core(lua_State *L)
 {
 	/* create module table */
 	lua_newtable(L);

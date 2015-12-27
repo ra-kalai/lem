@@ -24,10 +24,10 @@
 #include <../lem/io/core.c>
 #include <../lem/os/core.c>
 #include <../lem/parsers/core.c>
-#include <../lem/utils.c>
+#include <../lem/utils/core.c>
 
 static const luaL_Reg lem_loadedlibs[] = { 
-	{"lem.utils", luaopen_lem_utils},
+	{"lem.utils", luaopen_lem_utils_core},
 	{"lem.parsers.core", luaopen_lem_parsers_core},
 	{"lem.signal.core", luaopen_lem_signal_core},
 	{"lem.http.core", luaopen_lem_http_core},

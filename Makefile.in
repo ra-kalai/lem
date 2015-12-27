@@ -27,6 +27,7 @@ objects_static      = @objects_static@
 
 llibs = \
 	lem/cmd.lua \
+	lem/utils.lua \
 	lem/repl.lua \
 	lem/parsers.lua \
 	lem/io.lua \
@@ -42,7 +43,7 @@ llibs = \
 	lem/hathaway.lua 
 
 clibs = \
-	lem/utils.so \
+	lem/utils/core.so \
 	lem/parsers/core.so \
 	lem/io/core.so \
 	lem/os/core.so \
@@ -175,4 +176,4 @@ install: \
 	$(clibs:%=$(DESTDIR)$(cmoddir)/%)
 
 clean:
-	rm -f bin/lem bin/local-lem bin/lem-s bin/*.o lem/*/core.so.o lem/utils.so.o $(clibs) lua/luaconf.h lem.pc bin/static-llib.c
+	rm -f bin/lem bin/local-lem bin/lem-s bin/*.o lem/*/core.so.o $(clibs) lua/luaconf.h lem.pc bin/static-llib.c
