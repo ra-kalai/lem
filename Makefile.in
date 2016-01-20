@@ -103,7 +103,7 @@ bin/local-lem: bin/lem
 
 bin/static-llib.c: bin/local-lem $(llibs)
 	$E '  LUA-TO-C    $@'
-	bin/pack-llib.lua bin/static-llib.c
+	bin/pack-lib.lua bin/static-llib.c bin/static-clib-extra.h
 
 bin/lem-s.o: CPPFLAGS += -DSTATIC_LEM
 bin/lem-s.o: CPPFLAGS += -D'LEM_LDIR="$(lmoddir)/"' 

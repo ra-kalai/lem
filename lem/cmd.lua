@@ -18,7 +18,7 @@
 --
 
 local utils = require 'lem.utils'
-local io = require 'io'
+local io = require 'lem.io'
 local format = string.format
 
 local M = {}
@@ -169,7 +169,6 @@ M.lem_main = function ()
 
 	local LEM_VERSION = format("A Lua Event Machine 0.4 (%s) Copyright (C) 2011-2015 Emil Renner Berthing\n", _VERSION)
 
-	local io = require 'lem.io'
 	local function start_repl() 
 		local r = require 'lem.repl'
 		local _, err = r.repl('stdin', io.stdin, io.stdout)

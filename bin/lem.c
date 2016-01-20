@@ -331,19 +331,25 @@ queue_file(int argc, char *argv[], int fidx)
 	}
 	lua_setglobal(T, "arg");
 
-	//if (fidx < argc)
-	//	filename = argv[fidx];
-	//else {
 #ifdef STATIC_LEM
 		goto after_repl_load;
 #else
 		if (strcmp(basename(argv[0]), "local-lem")==0) {
+			{
+				const char lem_local_pkg[] =
+					"package.path  = \"?.lua\""
+					"package.cpath = \"?.so\"";
+
+				lua_load_ret = luaL_loadbuffer(T, lem_local_pkg, sizeof lem_local_pkg - 1, "local_lem");
+
+				lua_pcall(T, 0, 0, 0);
+			}
+
 			filename =  "lem/cmd.lua";
 		} else {
 			filename =  LEM_LDIR  "lem/cmd.lua";
 		}
 #endif
-	//}
 
 	lua_load_ret = luaL_loadfile(T, filename);
 

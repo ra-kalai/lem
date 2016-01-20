@@ -18,22 +18,27 @@
 
 #include <lem-parsers.h>
 
-#include <../lem/signal/core.c>
-#include <../lem/http/core.c>
-#include <../lem/lfs/core.c>
-#include <../lem/io/core.c>
-#include <../lem/os/core.c>
-#include <../lem/parsers/core.c>
-#include <../lem/utils/core.c>
+#include "../lem/signal/core.c"
+#include "../lem/http/core.c"
+#include "../lem/lfs/core.c"
+#include "../lem/io/core.c"
+#include "../lem/os/core.c"
+#include "../lem/parsers/core.c"
+#include "../lem/utils/core.c"
+
+#include "static-clib-extra.h"
 
 static const luaL_Reg lem_loadedlibs[] = { 
-	{"lem.utils", luaopen_lem_utils_core},
+	{"lem.utils.core", luaopen_lem_utils_core},
 	{"lem.parsers.core", luaopen_lem_parsers_core},
 	{"lem.signal.core", luaopen_lem_signal_core},
 	{"lem.http.core", luaopen_lem_http_core},
 	{"lem.lfs.core", luaopen_lem_lfs_core},
 	{"lem.io.core", luaopen_lem_io_core},
 	{"lem.os.core", luaopen_lem_os_core},
+
+#include "static-clib-extra.h"
+
 	{NULL, NULL}
 };
 
