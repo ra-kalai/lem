@@ -135,8 +135,8 @@ local function handleHTTP(self, client)
 			headers['Content-Length'] = body_len
 		end
 
-		if not headers['Date'] then
-			headers['Date'] = date('!%a, %d %b %Y %T GMT')
+		if headers['Date'] == nil then
+			headers['Date'] = date('!%a, %d %b %Y %H:%M:%S GMT')
 		end
 
 		if not headers['Server'] then
