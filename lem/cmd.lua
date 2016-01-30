@@ -74,7 +74,12 @@ M.parse_arg = function (args, argv, start)
 				ret[key] = ret[key] + 1
 			else
 				ret[key] = ret[key] or {}
-				ret[key][#ret[key]+1] = argv[i+1]
+				if i+1 <= #argv then
+					ret[key][#ret[key]+1] = argv[i+1]
+				else
+					err = format("missing '%s' payload", carg)
+					break
+				end
 				i = i + 1
 			end
 		elseif ret.last_arg[0] == nil and (carg == '-' or carg == '--') then
@@ -83,7 +88,7 @@ M.parse_arg = function (args, argv, start)
 		else
 			if ret.last_arg[0] == nil then
 				if ret['--'] == nil and carg:match("^-") then
-					err = carg
+					err = format("unrecognized option: '%s'", carg)
 					break
 				end
 			end
@@ -114,13 +119,24 @@ end
 
 M.display_usage= function (args, err)
 	if err.err then
-		stderr_print("unrecognized option: '%s'\n", err.err)
+		stderr_print(err.err .."\n")
 	end
 
 	local max_arg_len = 0
 	for i, v in pairs(args.possible) do
 		if max_arg_len < #v[2] then
 			max_arg_len = #v[2]
+		end
+	end
+
+	local max_default_arg_len = 0
+	for i, v in pairs(args.possible) do
+		local dval = v[3].default_value
+		if dval then
+			local dval_len = tostring(dval)
+			if max_default_arg_len < #dval_len then
+				max_default_arg_len = #dval_len
+			end
 		end
 	end
 
@@ -142,8 +158,19 @@ M.display_usage= function (args, err)
 			max_arg_len = max_arg_len + 1
 		end
 
-	stderr_print("  %s %-" .. (max_arg_len+1) .. "s %s\n", v[1], v[2], v[3].desc or "")
+		if max_default_arg_len == 0 then
+			stderr_print("  %s %-" .. (max_arg_len+1) .. "s %s\n", v[1], v[2], v[3].desc or "")
+		else
+			local dval = v[3].default_value
 
+			if dval == nil then
+				stderr_print("  %s %-" .. (max_arg_len+1) .. "s %s %s\n", v[1], v[2], string.rep(" ", max_default_arg_len+2), v[3].desc or "")
+			else
+				stderr_print("  %s %-" .. (max_arg_len+1) .. "s %s %s\n", v[1], v[2],
+																																  format("%-" .. (max_default_arg_len+2) .. "s", '[' .. dval .. ']'),
+																																	v[3].desc or "")
+			end
+		end
 	end
   
 	os.exit(1)
