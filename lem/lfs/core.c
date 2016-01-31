@@ -459,11 +459,13 @@ static int
 lfs_symattr(lua_State *T)
 {
 	const char *path = luaL_checkstring(T, 1);
+	int op = luaL_checkoption(T, 2, "*", lfs_attrs);
 	struct lfs_attr *at;
 
 	at = lem_xmalloc(sizeof(struct lfs_attr));
 	at->T = T;
 	at->path = path;
+	at->op = op;
 	lem_async_do(&at->a, lfs_lstat_work, lfs_attr_reap);
 
 	lua_settop(T, 1);
