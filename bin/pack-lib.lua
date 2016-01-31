@@ -63,7 +63,7 @@ lualib[#lualib+1] = [==[
 	local g_require = {
 ]==]
 
-local core_lua_file_list = {'lem/*/*.lua$', 'lem/*.lua$'}
+local core_lua_file_list = {'lem/*/*.lua', 'lem/*.lua'}
 
 local cmd = nil
 local extra_lua_file = {}
