@@ -49,72 +49,75 @@ do
 	end
 end
 
-function lfs.glob(path, kind)
-	kind = kind or 'df'
-	local folder =  {}
-	local ret = {}
+function glob(path, mode, cpath, lvl)
+	mode = mode or 'f'
 
-	local list_file
-	local list_dir
-
-	if kind:match('d') then list_dir = true end
-	if kind:match('f') then list_file = true end
-
-	path:gsub('(/?[^/]+/?)', function (match)
-		folder[#folder+1] = match
-	end)
-
-	local dirpath = ''
-	local leave_first_loop = false
-
-	for i, cdir in pairs(folder) do
-
-		if cdir:match('%*') then
-
-			local dir_iter, k = lfs.dir(dirpath)
-
-			repeat
-				name = dir_iter(k)
-				if name and
-					 name ~= '.'  and
-					 name ~= '..' then
-
-					if name:match(cdir:gsub("%*",".*"):gsub('/','')) then
-						local attr = lfs.attributes(dirpath .. name)
-
-						if attr.mode == 'file' then
-							if list_file and i == #folder then
-								ret[#ret+1] = dirpath .. name
-							end
-						else
-							if list_dir and i == #folder then
-								ret[#ret+1] = dirpath .. name
-							else
-								local path_down = dirpath .. name .. '/'
-
-								for i2 = i+1, #folder do
-									path_down = path_down .. folder[i2]
-								end
-								local lret = lfs.glob(path_down, kind)
-								for li=1,#lret do
-									ret[#ret+1] = lret[li]
-								end
-							end
-						end
-
-						leave_first_loop = true
-					end
-				end
-			until name == nil
+	if type(path) == 'string' then
+		local path_t = {}
+		if path:match("^/") then
+			path_t[-1] = '/'
 		else
-			dirpath = dirpath .. cdir
+			path_t[-1] = './'
 		end
 
-		if leave_first_loop == true then break end
+		for w in path:gmatch("([^/]+)/?") do
+			path_t[#path_t+1] = w:gsub('%.', '%%.'):gsub("%*", ".*")..'$'
+		end
+		return glob(path_t, mode, path_t[-1], 1)
 	end
+
+	local list_file, list_dir, ret_stats
+
+	if mode:match('d') then list_dir = true end
+	if mode:match('f') then list_file = true end
+	if mode:match('s') then ret_stats = true end
+
+	local dir_iter, k = lfs.dir(cpath)
+	local ret = {}
+	local name
+
+	repeat
+		name = dir_iter(k)
+
+		if name and
+			 name ~= '.' and
+			 name ~= '..' then
+
+			if path[lvl] == nil then
+				return ret
+			end
+
+			if name:match(path[lvl]) then
+				local attr = lfs.symlinkattributes(cpath .. name)
+				if attr.mode == 'file' then
+					if list_file and lvl == #path then
+						if ret_stats then
+							ret[#ret + 1] = {cpath .. name, attr}
+						else
+							ret[#ret + 1] = cpath .. name
+						end
+					end
+				elseif attr.mode == 'directory' then
+					local subret = glob(path, mode, cpath .. name .. '/', lvl + 1)
+					for i=1, #subret do
+						ret[#ret+1] = subret[i]
+					end
+					if lvl == #path and list_dir then
+						if ret_stats then
+							ret[#ret + 1] = {cpath .. name, attr}
+						else
+							ret[#ret + 1] = cpath .. name
+						end
+					end
+				end
+			end
+		end
+	until name == nil
 
 	return ret
 end
+
+lfs.glob = glob
 
 return lfs
 
