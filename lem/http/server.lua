@@ -123,7 +123,7 @@ local function handleHTTP(self, client)
 		end
 
 		local body
-		local body_len
+		local body_len = 0
 		if not headers['Content-Length'] and res.status ~= 204 then
 			if file then
 				body_len = file:size()
