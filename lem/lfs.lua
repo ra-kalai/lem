@@ -49,7 +49,7 @@ do
 	end
 end
 
-function glob(path, mode, cpath, lvl)
+local function glob(path, mode, cpath, lvl)
 	mode = mode or 'f'
 
 	if type(path) == 'string' then

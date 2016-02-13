@@ -66,6 +66,142 @@ lem_utils.waittid = function (tid_list)
 	return tid_count
 end
 
+do
+	-- Tony serializer
+	-- http://lua-users.org/lists/lua-l/2009-11/msg00533.html
+	local szt = {}
+	local format = string.format
+
+	local loadstring_fun
+
+	local string_dump = function (f)
+		return string.dump(f, true)
+	end
+
+	if _VERSION == 'Lua 5.1' then
+		loadstring_fun = "loadstring"
+	else
+		loadstring_fun = "load"
+		loadstring = load
+	end
+
+	local tr_c_map = {
+		["\a"]= "\\a",
+		["\b"]= "\\b",
+		["\f"]= "\\f",
+		["\n"]= "\\n",
+		["\r"]= "\\r",
+		["\t"]= "\\t",
+		["\v"]= "\\v",
+		["\""]= "\\\"",
+		["\\"]= "\\\\",
+	}
+
+	local function char(c)
+		local r = tr_c_map[c]
+		if r then return r end
+
+		return format("\\%03d", c:byte())
+	end
+
+	local function szstr(s)
+		return
+		format('"%s"',
+			s :gsub("[^0-9a-zA-Z\t %._-@/()%#!{|}~:;<=>?$&*+`%]%[]", char))
+				:gsub("\\([0-9][0-9][0-9])([^0-9])",function (a, b)
+					return '\\'..tonumber(a)..b
+				end)
+	end
+
+	local function szfun(f)
+		local ret = {}
+		ret[#ret+1] = '(function ()'
+		ret[#ret+1] = 'local n = {}'
+		ret[#ret+1] = 'local f = '
+		ret[#ret+1] = loadstring_fun
+		ret[#ret+1] = '('
+		ret[#ret+1] = szstr(string_dump(f))
+		ret[#ret+1] = ')'
+		ret[#ret+1] = 'local t = {'
+
+		local i = 1
+
+		while true do
+			local upval, val = debug.getupvalue(f, i)
+
+			if upval == nil then break end
+
+			if upval ~= '_ENV' then
+				if type(val) == 'function' then
+					ret[#ret + 1] =  loadstring_fun .. '(' .. szstr(serialize(val)) .. ')()'
+					elseif type(val) == "nil" then
+						ret[#ret+1] = 'nil'
+					else
+						ret[#ret + 1] = szany(val)
+					end
+				else
+					ret[#ret + 1] = '_ENV '
+				end
+			ret[#ret + 1] = ','
+			i = i + 1
+		end
+		ret[#ret + 1] = '}'
+		ret[#ret + 1] = 'local i '
+		ret[#ret + 1] = 'for i=1, #t do'
+		ret[#ret + 1] = '	debug.setupvalue(f, i, t[i])'
+		ret[#ret + 1] = 'end '
+		ret[#ret+1] = 'return f '
+		ret[#ret+1] = 'end)()'
+
+		return table.concat(ret)
+	end
+
+	function szany(...) return szt[type(...)](...) end
+
+	local function sztbl(t,code,var)
+		for k,v in pairs(t) do
+			local ks = szany(k,code,var)
+			local vs = szany(v,code,var)
+			code[#code+1] = format("%s[%s]=%s", var[t], ks, vs)
+		end
+		return "{}"
+	end
+
+	local function memo(sz)
+		return function(d,code,var)
+			if var[d] == nil then
+				var[1] = var[1] + 1
+				var[d] = format("_[%d]", var[1])
+				local index = #code+1
+				code[index] = "" -- reserve place during recursion
+				code[index] = format("%s=%s", var[d], sz(d,code,var))
+			end
+			return var[d]
+		end
+	end
+
+	szt["nil"]      = tostring
+	szt["boolean"]  = tostring
+	szt["number"]   = tostring
+	szt["string"]   = szstr
+	szt["function"] = memo(szfun)
+	szt["table"]    = memo(sztbl)
+
+	function serialize(d)
+		local code = { "local _ = {}" }
+		local value = szany(d, code, {0})
+		code[#code+1] = "return "..value
+		if #code == 2 then return code[2]
+		else return table.concat(code, "\n")
+		end
+	end
+
+	lem_utils.serialize = serialize
+	lem_utils.unserialize = function (s)
+		return loadstring(s)()
+	end
+end
+
 return lem_utils
 
 -- vim: ts=2 sw=2 noet:

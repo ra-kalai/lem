@@ -16,9 +16,9 @@
 -- License along with LEM.  If not, see <http://www.gnu.org/licenses/>.
 --
 
-local load = load
-if _VERSION == 'Lua 5.1' then
-	load = loadstring
+local loadstring = loadstring
+if _VERSION ~= 'Lua 5.1' then
+	loadstring = load
 end
 
 local format = string.format
@@ -66,7 +66,7 @@ local function repl(name, ins, outs)
 		local line = res:gsub('^=', 'return ')
 
 		while true do
-			res, err = load(line, name)
+			res, err = loadstring(line, name)
 			if res then
 				res, err = onreturn(pcall(res))
 				if not res then return nil, err end
