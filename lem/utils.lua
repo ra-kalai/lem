@@ -136,6 +136,8 @@ do
 					ret[#ret + 1] =  loadstring_fun .. '(' .. szstr(serialize(val)) .. ')()'
 					elseif type(val) == "nil" then
 						ret[#ret+1] = 'nil'
+					elseif type(val) == "table" then
+						ret[#ret + 1] = loadstring_fun .. '(' .. szstr(serialize(val)) .. ')()'
 					else
 						ret[#ret + 1] = szany(val)
 					end
