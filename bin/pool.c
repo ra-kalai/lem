@@ -34,24 +34,33 @@ static pthread_mutex_t pool_dlock;
 #define pool_done_unlock() pthread_mutex_unlock(&pool_dlock)
 #endif
 static pthread_cond_t pool_cond;
+static pthread_condattr_t pool_condattr;
 static struct lem_async *pool_head;
 static struct lem_async *pool_tail;
 static struct lem_async *pool_done;
 static struct ev_async pool_watch;
+
+#define LEM_POOL_USED_CLOCK CLOCK_MONOTONIC
+
+#ifdef __linux__
+	#define LEM_POOL_FASTCLOCK CLOCK_MONOTONIC_COARSE
+#elif __FreeBSD__
+	#define LEM_POOL_FASTCLOCK CLOCK_MONOTONIC_FAST
+#else
+	#define LEM_POOL_FASTCLOCK CLOCK_MONOTONIC
+#endif
 
 static void *
 pool_threadfunc(void *arg)
 {
 	struct lem_async *a;
 	struct timespec ts;
-	struct timeval tv;
 
 	(void)arg;
 
 	while (1) {
-		gettimeofday(&tv, NULL);
-		ts.tv_sec  = tv.tv_sec + pool_delay;
-		ts.tv_nsec = 1000*tv.tv_usec;
+		clock_gettime(LEM_POOL_FASTCLOCK, &ts);
+		ts.tv_sec  += pool_delay;
 
 		pthread_mutex_lock(&pool_mutex);
 		while ((a = pool_head) == NULL) {
@@ -149,7 +158,21 @@ pool_init(void)
 		return -1;
 	}
 
-	ret = pthread_cond_init(&pool_cond, NULL);
+	ret = pthread_condattr_init(&pool_condattr);
+	if (ret) {
+		lem_log_error("error initializing cond_attr: %s",
+				strerror(ret));
+		return -1;
+	}
+
+	ret = pthread_condattr_setclock(&pool_condattr, LEM_POOL_USED_CLOCK);
+	if (ret) {
+		lem_log_error("error initializing clock on cond_attr: %s",
+				strerror(ret));
+		return -1;
+	}
+
+	ret = pthread_cond_init(&pool_cond, &pool_condattr);
 	if (ret) {
 		lem_log_error("error initializing cond: %s",
 				strerror(ret));
