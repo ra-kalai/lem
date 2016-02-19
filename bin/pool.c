@@ -130,8 +130,8 @@ pool_init(void)
 	pool_min = 0;
 	pool_threads = 0;
 	*/
-	pool_max = INT_MAX;
-	pool_delay = 10;
+	pool_max = 8 /*INT_MAX*/;
+	pool_delay = 3;
 	/*
 	pool_head = NULL;
 	pool_tail = NULL;
