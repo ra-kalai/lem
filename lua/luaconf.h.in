@@ -11,7 +11,11 @@
 #include <limits.h>
 #include <stddef.h>
 
-#define LUA_USE_LINUX
+#ifdef __CYGWIN__
+	#define _WIN32
+#else
+	#define LUA_USE_LINUX
+#endif
 
 /*
 ** ===================================================================

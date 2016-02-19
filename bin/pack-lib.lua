@@ -27,7 +27,7 @@
 --
 
 package.path = '?.lua'
-package.cpath = '?.so'
+package.cpath = '?.so;?.dll'
 
 local g_debug = os.getenv('V')
 
@@ -38,6 +38,8 @@ local glob = lfs.glob
 local serialize   -- alias of the function to serialize lua code
 local loadbc      -- alias of the function to load bytecode / lua string
 local lstring     -- the name of the function to load bytecode / lua string on the current __VERSION of lua
+
+local format = string.format
 
 
 if _VERSION == 'Lua 5.1' then
@@ -101,27 +103,31 @@ local c
 
 for i, path in pairs(core_lua_file_list) do
 	for i, v in pairs(glob(path)) do
-		if g_debug then
-			io.stderr:write('packing: ' .. v .. ' \n')
-		end
 		c = io.open(v):read("*a")
-		lualib[#lualib+1] = string.format("[%q]={lstring(%q)},",
-			v:gsub('.lua$',''):gsub('/','.'),
+		local lpath = v:gsub("^%./",''):gsub('%.lua$',''):gsub('/','.')
+		if g_debug then
+			io.stderr:write(
+				format('packing %-30s -> %s\n', v , lpath))
+		end
+		lualib[#lualib+1] = format("[%q]={lstring(%q)},",
+			lpath,
 			serialize(loadbc(c)))
 	end
 end
 
 for i, v in pairs(extra_lua_file) do
-	if g_debug then
-		io.stderr:write('packing: ' .. v[2] .. ' -> '.. v[1]..' \n')
-	end
 	c = io.open(v[2]):read("*a")
 	c = c:gsub('^#![^\n]*\n(.*)', '%1')
 	c, err = loadbc(c)
 	if err then
 		print(err)
 	end
-	lualib[#lualib+1] = string.format("[%q]={lstring(%q)},",v[1]:gsub('.lua$',''):gsub('/','.'), serialize(c))
+	local lpath = v[1]:gsub("^%./",''):gsub('.lua$',''):gsub('/','.')
+	if g_debug then
+		io.stderr:write(
+			format('packing %-30s -> %s\n', v[2] , lpath))
+	end
+	lualib[#lualib+1] = format("[%q]={lstring(%q)},",lpath, serialize(c))
 end
 
 lualib[#lualib+1] = [==[
@@ -147,12 +153,12 @@ end)()
 ]==]
 
 if cmd then
-	lualib[#lualib+1] = string.format('command_chain = {%q, function() require %q end}', cmd, cmd)
+	lualib[#lualib+1] = format('command_chain = {%q, function() require %q end}', cmd, cmd)
 end
 
 -- embed this Lua script in a C file
 local c = 0
-local out = string.format([[
+local out = format([[
 #include <stdint.h>
 const char lem_lualib_preamble[] = {
 %s]],
@@ -160,9 +166,9 @@ const char lem_lualib_preamble[] = {
 	:gsub(".", function (m)
 		c = c + 1
 		if c % 20 == 0 then
-			return '0x' .. string.format('%02x,\n', string.byte(m))
+			return '0x' .. format('%02x,\n', string.byte(m))
 		else
-			return '0x' .. string.format('%02x,', string.byte(m))
+			return '0x' .. format('%02x,', string.byte(m))
 		end
 	end) ..
 '};')
@@ -181,7 +187,7 @@ out = [[
 	local o = {}
 
 	for i, v in pairs(extra_c_files) do
-		o[#o + 1] = string.format('#include "../%s"', v[2])
+		o[#o + 1] = format('#include "../%s"', v[2])
 	end
 
 	return table.concat(o)
@@ -198,13 +204,13 @@ end)()
 	local o = {}
 
 	for i, v in pairs(extra_c_files) do
-		o[#o + 1] = string.format('{"%s", %s},', v[1]:gsub(".[^.]*$", "")
-																								:gsub("/","."),
-																						'luaopen_' ..
-																						(v[1]:gsub(".[^.]*$", "")
-																								:gsub("/","_"))
+		o[#o + 1] = format('{"%s", %s},', v[1]:gsub(".[^.]*$", "")
+																					:gsub("/","."),
+																			'luaopen_' ..
+																			(v[1]:gsub(".[^.]*$", "")
+																					:gsub("/","_"))
 
-																						)
+																			)
 	end
 
 	return table.concat(o)

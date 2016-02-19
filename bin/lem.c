@@ -338,7 +338,7 @@ queue_file(int argc, char *argv[], int fidx)
 			{
 				const char lem_local_pkg[] =
 					"package.path  = \"?.lua\""
-					"package.cpath = \"?.so\"";
+					"package.cpath = \"?.dll;?.so\"";
 
 				lua_load_ret = luaL_loadbuffer(T, lem_local_pkg, sizeof lem_local_pkg - 1, "local_lem");
 

@@ -39,7 +39,54 @@
 extern char **__lem_main_environ;
 #else
 #include <sys/un.h>
-#include <sys/sendfile.h>
+
+#ifdef __CYGWIN__
+#include <unistd.h>
+
+ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t count) {
+	char *buff = malloc(count);
+
+	off_t offset_to_restore;
+
+	if (offset) {
+		off_t set_offset;
+		offset_to_restore = lseek(in_fd, 0, SEEK_CUR);
+		set_offset = lseek(in_fd, *offset, SEEK_SET);
+		if (set_offset == -1) {
+			goto sendfile_fail_setoffset;
+		}
+	}
+
+	ssize_t read_in = read(in_fd,buff, count);
+	if (read_in <= 0) goto sendfile_fail_read;
+	ssize_t write_out = write(out_fd, buff, read_in);
+
+	if (offset != NULL) {
+		lseek(in_fd, offset_to_restore, SEEK_SET);
+		if (write_out > 0) {
+			*offset += write_out;
+		}
+	} else {
+		if (write_out > 0) {
+			lseek(in_fd, SEEK_CUR, write_out);
+		}
+	}
+
+	free(buff);
+	return write_out;
+
+	sendfile_fail_setoffset:
+		free(buff);
+		return -1;
+
+	sendfile_fail_read:
+		free(buff);
+		return read_in;
+}
+
+#else
+	#include <sys/sendfile.h>
+#endif
 #endif
 
 #ifndef UNIX_PATH_MAX

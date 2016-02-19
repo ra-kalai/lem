@@ -68,6 +68,10 @@ ifndef DEBUG
   CPPFLAGS += -DNDEBUG
 endif
 
+ifeq ($(OS), Windows_NT)
+clibs := $(clibs:.so=.dll)
+endif
+
 .PHONY: all strip install clean
 
 all: bin/lem bin/local-lem lem.pc $(clibs) bin/lem-s
@@ -79,47 +83,67 @@ include/lem.h: lua/luaconf.h
 bin/lua.o: lua/luaconf.h
 bin/lem.o: include/lem.h bin/pool.c
 bin/lem.o: CPPFLAGS += -D'LEM_LDIR="$(lmoddir)/"'
-lem/io/core.so: include/lem-parsers.h \
-	lem/io/file.c \
-	lem/io/stream.c \
-	lem/io/server.c \
-	lem/io/unix.c \
-	lem/io/tcp.c \
-	lem/io/udp.c
+
+
+io_core_file_list = include/lem-parsers.h \
+							 lem/io/file.c \
+							 lem/io/stream.c \
+							 lem/io/server.c \
+							 lem/io/unix.c \
+							 lem/io/tcp.c \
+							 lem/io/udp.c
+
+lem/io/core.so: $(io_core_file_list)
 lem/parsers/core.so: include/lem-parsers.h
 lem/http/core.so: include/lem-parsers.h
+
+lem/io/core.dll: $(io_core_file_list)
+lem/parsers/core.dll: include/lem-parsers.h
+lem/http/core.dll: include/lem-parsers.h
 
 %.o: %.c
 	$E '  CC    $@'
 	$Q$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 bin/lem: $(objects)
+ifneq ($(OS), Windows_NT)
 	$E '  LD    $@'
 	$Q$(CC) $^ -o $@ -rdynamic $(LDFLAGS) $(LIBS)
+else
+	$Qdlltool --export-all --output-def lem.def $^
+	$Qdlltool --dllname bin/lem.exe --def lem.def --output-lib liblem.a
+	$Qdlltool --dllname bin/lem.exe --output-exp lem.exp --def lem.def
+	$Qgcc -g $^ -o bin/lem.exe -Wl,--base-file,lem.base lem.exp $(LDFLAGS) $(LIBS)
+	$Qdlltool --dllname bin/lem.exe --base-file lem.base --output-exp lem.exp --def lem.def
+	$Qgcc -g $^ -o bin/lem.exe lem.exp $(LDFLAGS) $(LIBS)
+	$Qrm lem.exp lem.base
+endif
 
 bin/local-lem: bin/lem
 	$E '  LN    $@'
 	ln -sf lem bin/local-lem
 
-bin/static-llib.c: bin/local-lem $(llibs)
+bin/static-llib.c: bin/local-lem $(llibs) bin/pack-lib.lua
 	$E '  LUA-TO-C    $@'
 	bin/pack-lib.lua bin/static-llib.c bin/static-clib-extra.h
 
 bin/lem-s.o: CPPFLAGS += -DSTATIC_LEM
-bin/lem-s.o: CPPFLAGS += -D'LEM_LDIR="$(lmoddir)/"' 
+bin/lem-s.o: CPPFLAGS += -D'LEM_LDIR="$(lmoddir)/"'
 bin/lem-s.o:  bin/lem.c bin/static-llib.c bin/static-clib.c
 	$E '  CC    $@'
 	$Q$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o bin/lem-s.o
 
-bin/lem-s: $(objects_static) 
+bin/lem-s: $(objects_static)
 	$E '  LD    $@'
 	$Q$(CC) $^ -o $@ -rdynamic $(LDFLAGS) $(LIBS)
 
 %.so: %.c include/lem.h
 	$E '  CCLD  $@'
-	$Q$(CC) $(CFLAGS) $(CPPFLAGS) -fPIC -nostartfiles  -c $< -o $@.o
-	$Q$(CC) $(CFLAGS) $(CPPFLAGS) -fPIC -nostartfiles $(SHARED) $@.o -o $@ $(LDFLAGS)
-	@#$Q$(CC) $(CFLAGS) $(CPPFLAGS) -fPIC -nostartfiles $(SHARED) $< -o $@ $(LDFLAGS)
+	$Q$(CC) $(CFLAGS) $(CPPFLAGS) -fPIC -nostartfiles $(SHARED) $< -o $@ $(LDFLAGS)
+
+%.dll: %.c include/lem.h
+	$E '  CCLD  $@'
+	$Q$(CC) $(CFLAGS) $(CPPFLAGS) -nostartfiles $(SHARED) $< -o $@ $(LDFLAGS) liblem.a
 
 lua/luaconf.h: lua/luaconf.h.in
 	$E '  SED > $@'

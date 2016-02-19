@@ -191,7 +191,10 @@ os_setproctitle(lua_State *T)
 	__lem_main_argv[0][size] = 0;
 	snprintf(__lem_main_argv[0], size, "%s", proc_title);
                               
+#ifndef __CYGWIN__
 	prctl(PR_SET_NAME, __lem_main_argv[0], 0, 0, 0);
+#endif
+
 #endif
 	return 0;
 }
