@@ -18,7 +18,7 @@
 --
 
 package.path = '?.lua'
-package.cpath = '?.so'
+package.cpath = '?.so;?.dll'
 
 local utils = require 'lem.utils'
 

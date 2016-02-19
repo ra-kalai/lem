@@ -18,7 +18,7 @@
 --
 
 package.path = '?.lua'
-package.cpath = '?.so'
+package.cpath = '?.so;?.dll'
 
 local io    = require 'lem.io'
 local write, format = io.write, string.format

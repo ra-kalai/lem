@@ -18,7 +18,7 @@
 --
 
 package.path = '?.lua'
-package.cpath = '?.so'
+package.cpath = '?.so;?.dll'
 
 local signal = require 'lem.signal'
 local utils = require 'lem.utils'
