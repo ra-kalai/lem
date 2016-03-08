@@ -66,6 +66,15 @@ lem_utils.waittid = function (tid_list)
 	return tid_count
 end
 
+lem_utils.usleep = function (t)
+	lem_utils.sleep(t/1000.)
+end
+
+lem_utils.sleep = function (t)
+	local sleeper = lem_utils.newsleeper(t)
+	sleeper:sleep(t)
+end
+
 do
 	-- Tony serializer
 	-- http://lua-users.org/lists/lua-l/2009-11/msg00533.html
