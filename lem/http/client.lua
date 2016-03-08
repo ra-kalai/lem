@@ -122,7 +122,7 @@ function Client:get(url, extra_headers)
 --	Connection = 'close'
 	}
 
-	local proto, domain_and_port, uri = url:match('([a-zA-Z0-9]+)://([a-zA-Z0-9.:]+)(/.*)')
+	local proto, domain_and_port, uri = url:match('([a-zA-Z0-9]+)://([^/]+)(/.*)')
 	if not proto then
 		error('Invalid URL', 2)
 	end
