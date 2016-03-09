@@ -21,15 +21,32 @@ local setmetatable = setmetatable
 local tonumber = tonumber
 local pairs = pairs
 local type = type
-local format = string.format
 local concat = table.concat
-local remove = table.remove
 
 local io       = require 'lem.io'
                  require 'lem.http'
 local response = require 'lem.http.response'
 local utils = require 'lem.utils'
-local date = os.date
+local response_status_string = response.status_string
+
+local utc_date
+do
+	local floor = math.floor
+	local date = os.date
+	local utcd
+	local ct
+	local now = utils.now
+
+	utc_date = function()
+		local t = floor(now())
+		if ct ~= t then
+			utcd = date('!%a, %d %b %Y %H:%M:%S GMT')
+			ct = t
+		end
+
+		return utcd
+	end
+end
 
 local M = {}
 
@@ -59,7 +76,7 @@ function Request:body()
 end
 
 do
-	local gsub, char, tonumber = string.gsub, string.char, tonumber
+	local gsub, char = string.gsub, string.char
 
 	local function tochar(str)
 		return char(tonumber(str, 16))
@@ -75,6 +92,9 @@ local newresponse = response.new
 
 local function handleHTTP(self, client)
 	local res
+
+	local keep_serving = true
+
 	repeat
 		local req, err = client:read('HTTPRequest')
 		if not req then self.debug('read', err) break end
@@ -90,6 +110,8 @@ local function handleHTTP(self, client)
 			response.version_not_supported(req, res)
 			version = '1.1'
 		else
+			if version == '1.0' then keep_serving = false end
+
 			local expect = req.headers['expect']
 			if expect and expect ~= '100-continue' then
 				response.expectation_failed(req, res)
@@ -103,28 +125,50 @@ local function handleHTTP(self, client)
 
 		local headers = res.headers
 		local file, close_file = res.file, false
-		if type(file) == 'string' then
-			file, err = io.open(file)
-			if file then
-				close_file = true
-			else
-				self.debug('open', err)
-				res = newresponse(req)
-				response.not_found(req, res)
+		if file then
+			if type(file) == 'string' then
+				file, err = io.open(file)
+
+				if file then
+					close_file = true
+				else
+					self.debug('open', err)
+					res = newresponse(req)
+					response.not_found(req, res)
+				end
 			end
 		end
 
-		if not res.status then
-			if #res == 0 and not file then
+		if res.status == nil then
+			if #res == 0 and file == nil then
 				res.status = 204
 			else
 				res.status = 200
 			end
 		end
 
+
+		local rope = {
+			'HTTP/' .. version .. ' ' .. response_status_string[res.status] .. '\r\n'
+		}
+
+		if req.headers['connection'] == 'close' and
+			headers['Connection'] == nil then
+			rope[#rope+1] = 'Connection: close\r\n'
+			keep_serving = false
+		end
+
+		if headers['Server'] == nil then
+			rope[#rope+1] = 'Server: Hathaway/0.1 LEM/0.3\r\n'
+		end
+
+		if headers['Date'] == nil then
+			rope[#rope+1] = 'Date: ' .. utc_date() .. '\r\n'
+		end
+
 		local body
 		local body_len = 0
-		if not headers['Content-Length'] and res.status ~= 204 then
+		if headers['Content-Length'] == nil and res.status ~= 204 then
 			if file then
 				body_len = file:size()
 			else
@@ -132,28 +176,7 @@ local function handleHTTP(self, client)
 				body_len = #body
 			end
 
-			headers['Content-Length'] = body_len
-		end
-
-		if headers['Date'] == nil then
-			headers['Date'] = date('!%a, %d %b %Y %H:%M:%S GMT')
-		end
-
-		if not headers['Server'] then
-			headers['Server'] = 'Hathaway/0.1 LEM/0.3'
-		end
-
-		if req.headers['connection'] == 'close' and
-			 not headers['Connection'] then
-			headers['Connection'] = 'close'
-		end
-
-		local rope = {}
-		do
-			local status = res.status
-			status = response.status_string[status]
-
-			rope[1] = format('HTTP/%s %s\r\n', version, status)
+			rope[#rope+1] = 'Content-Length: '.. body_len .. '\r\n'
 		end
 
 		res:appendheader(rope)
@@ -165,7 +188,7 @@ local function handleHTTP(self, client)
 
 		if method ~= 'HEAD' then
 			if file then
-				ok, err = client:sendfile(file, headers['Content-Length'])
+				ok, err = client:sendfile(file, body_len)
 				if close_file then file:close() end
 			else
 				if body_len > 0 then
@@ -177,7 +200,7 @@ local function handleHTTP(self, client)
 
 		client:uncork()
 
-	until version == '1.0' or headers['Connection'] == 'close'
+	until keep_serving ~= true
 
 	client:close()
 end

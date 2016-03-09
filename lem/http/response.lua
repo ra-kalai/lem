@@ -19,10 +19,7 @@
 
 local setmetatable = setmetatable
 local tostring = tostring
-local tonumber = tonumber
-local pairs = pairs
 local type = type
-local date = os.date
 local format = string.format
 local concat = table.concat
 local remove = table.remove
@@ -155,31 +152,25 @@ local Response = {}
 Response.__index = Response
 M.Response = Response
 
-function Response:contentlength()
-	local len = 0
-	for i = 1, #self do
-		len = len + #self[i]
-	end
-	return len
-end
+do
+	local next = next
 
-function Response:appendheader(rope)
-	local headers = self.headers
-	local i = 1
-	local k = nil
-	k = next(headers, k)
-	while true do
-		if not k then
-			break
+	function Response:appendheader(rope)
+		local headers = self.headers
+		local i = #rope
+		local k = nil
+		k = next(headers, k)
+		while k do
+
+			i = i + 1
+			rope[i] = k .. ': ' .. headers[k] .. '\r\n'
+
+			k = next(headers, k)
 		end
 		i = i + 1
-		rope[i] = format('%s: %s\r\n', k, headers[k])
-
-		k = next(headers, k)
+		rope[i] = '\r\n'
+		return i
 	end
-	i = i + 1
-	rope[i] = '\r\n'
-	return i
 end
 
 function M.new(req)
