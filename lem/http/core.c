@@ -17,6 +17,46 @@
  */
 
 #include <lem-parsers.h>
+#include <ctype.h>
+
+static int
+_lem_urldecode(const char *src, size_t len, char *out) {
+	size_t i;
+	char *out_start = out;
+	char a, b;
+	for(i=0;i<len;i++) {
+		if ((src[i] == '%')
+			&& (i+2 < len)
+			&& (a = src[i+1])
+			&& (b = src[i+2])) {
+			if ((!isxdigit(a)) ||
+					(!isxdigit(b)))
+				return -1;
+
+			if (a >= 'a')
+				a -= 'a'-'A';
+			else if (a >= 'A')
+				a -= ('A' - 10);
+			else
+				a -= '0';
+
+			if (b >= 'a')
+				b -= 'a'-'A';
+			else if (b >= 'A')
+				b -= ('A' - 10);
+			else
+				b -= '0';
+			*out++ = 16*a+b;
+			i+=2;
+		} else if (src[i] == '+') {
+			*out++ = ' ';
+		} else {
+			*out++ = src[i];
+		}
+	}
+	return out - out_start;
+}
+
 
 enum classes {
 	C_CTL,   /* control characters */
@@ -258,6 +298,23 @@ parse_http_process(lua_State *T, struct lem_inputbuf *b)
 
 		case XUHS:
 			state = SUHS;
+			{
+				size_t i;
+				const char *tbuf = b->buf;
+				for(i=0;i<w;i++) {
+					if (tbuf[i] == '?') break;
+				}
+
+				char uri_buf[i];
+				int uri_len = _lem_urldecode(b->buf, i, uri_buf);
+				if (likely(uri_len != -1)) {
+					lua_pushlstring(T, uri_buf, uri_len);
+				} else {
+					lua_pushnil(T);
+				}
+				lua_setfield(T, -2, "path");
+			}
+
 			lua_pushlstring(T, b->buf, w);
 			lua_setfield(T, -2, "uri");
 			w = 0;
@@ -347,6 +404,26 @@ static const struct lem_parser http_res_parser = {
 	.process = parse_http_process,
 };
 
+static int
+lem_urldecode(lua_State *T)
+{
+	size_t len;
+	const char *str = lua_tolstring(T, 1, &len);
+	char out[len+1];
+	int out_len = _lem_urldecode(str, len, out);
+
+	if (out_len == -1) {
+		lua_pushnil(T);
+		lua_pushstring(T, "encoding error");
+		return 2;
+	}
+
+	out[out_len] = 0;
+	lua_pushlstring(T, out, out_len);
+
+	return 1;
+}
+
 int
 luaopen_lem_http_core(lua_State *L)
 {
@@ -357,6 +434,9 @@ luaopen_lem_http_core(lua_State *L)
 	lua_setfield(L, -2, "HTTPRequest");
 	lua_pushlightuserdata(L, (void *)&http_res_parser);
 	lua_setfield(L, -2, "HTTPResponse");
+
+	lua_pushcfunction(L, lem_urldecode);
+	lua_setfield(L, -2, "urldecode");
 
 	return 1;
 }

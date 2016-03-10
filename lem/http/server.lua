@@ -24,7 +24,7 @@ local type = type
 local concat = table.concat
 
 local io       = require 'lem.io'
-                 require 'lem.http'
+local http     = require 'lem.http'
 local response = require 'lem.http.response'
 local utils = require 'lem.utils'
 local response_status_string = response.status_string
@@ -75,19 +75,9 @@ function Request:body()
 	return body
 end
 
-do
-	local gsub, char = string.gsub, string.char
+local urldecode = http.urldecode
+M.urldecode = urldecode
 
-	local function tochar(str)
-		return char(tonumber(str, 16))
-	end
-
-	function M.urldecode(str)
-		return gsub(gsub(str, '+', ' '), '%%(%x%x)', tochar)
-	end
-end
-
-local urldecode = M.urldecode
 local newresponse = response.new
 
 local function handleHTTP(self, client)
@@ -98,11 +88,10 @@ local function handleHTTP(self, client)
 	repeat
 		local req, err = client:read('HTTPRequest')
 		if not req then self.debug('read', err) break end
-		local method, uri, version = req.method, req.uri, req.version
+		local method, version = req.method, req.version
 
 		setmetatable(req, Request)
 		req.client = client
-		req.path = urldecode(uri:match('^([^?]*)'))
 
 		res = newresponse(req)
 
@@ -116,15 +105,20 @@ local function handleHTTP(self, client)
 			if expect and expect ~= '100-continue' then
 				response.expectation_failed(req, res)
 			else
-				self.handler(req, res)
-				if res.abort == true then
-					break
+				if req.path then
+					self.handler(req, res)
+					if res.abort == true then
+						break
+					end
+				else
+					response.bad_request(req, res)
 				end
 			end
 		end
 
 		local headers = res.headers
 		local file, close_file = res.file, false
+
 		if file then
 			if type(file) == 'string' then
 				file, err = io.open(file)
@@ -152,18 +146,22 @@ local function handleHTTP(self, client)
 			'HTTP/' .. version .. ' ' .. response_status_string[res.status] .. '\r\n'
 		}
 
-		if req.headers['connection'] == 'close' and
-			headers['Connection'] == nil then
-			rope[#rope+1] = 'Connection: close\r\n'
-			keep_serving = false
+		local rope_idx = 2
+		if headers['Date'] == nil then
+			rope[rope_idx] = 'Date: ' .. utc_date() .. '\r\n'
+			rope_idx = rope_idx + 1
 		end
 
 		if headers['Server'] == nil then
-			rope[#rope+1] = 'Server: Hathaway/0.1 LEM/0.3\r\n'
+			rope[rope_idx] = 'Server: Hathaway/0.1 LEM/0.3\r\n'
+			rope_idx = rope_idx + 1
 		end
 
-		if headers['Date'] == nil then
-			rope[#rope+1] = 'Date: ' .. utc_date() .. '\r\n'
+		if req.headers['connection'] == 'close' and
+			headers['Connection'] == nil then
+			rope[rope_idx] = 'Connection: close\r\n'
+			rope_idx = rope_idx + 1
+			keep_serving = false
 		end
 
 		local body
