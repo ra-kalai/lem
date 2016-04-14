@@ -21,6 +21,7 @@ local lem_utils  = require 'lem.utils.core'
 local spawn = lem_utils.spawn
 local yield = lem_utils.yield
 local suspend = lem_utils.suspend
+local resume = lem_utils.resume
 local thisthread = lem_utils.thisthread
 
 local g_waittid_map = {}
@@ -83,15 +84,14 @@ end
 
 local thread_queue = {
 	run = function(self)
-		self.running = self.running or false
 		self.cursor = self.cursor or 1
 
 		if self.running == false then
 			local t = self.tidlist[self.cursor]
 			self.running = true
-			yield()
+
 			if t then
-				coroutine_resume(t)
+				resume(t)
 			else
 				self.running = false
 				self.cursor = 1
@@ -104,7 +104,11 @@ local thread_queue = {
 		local ret
 		local tid = spawn2(function ()
 			self.tidlist[#self.tidlist+1] = thisthread()
-			coro_yield()
+			if self.running == true then
+				coro_yield()
+			else
+				self.running = true
+			end
 			ret = {fun()}
 
 			self.running = false
@@ -125,7 +129,7 @@ local thread_queue = {
 local thread_queue_mt = { __index = thread_queue }
 
 local new_thread_queue = function ()
-	local o = {}
+	local o = {running = false}
 	setmetatable(o, thread_queue_mt)
 	return o
 end
