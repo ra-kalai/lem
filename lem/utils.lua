@@ -25,7 +25,9 @@ local thisthread = lem_utils.thisthread
 
 local g_waittid_map = {}
 
-lem_utils.spawn2 = function (f, ...)
+local coroutine_resume = coroutine.resume
+
+local function spawn2(f, ...)
 	local tid
 	spawn(function (...)
 		tid = thisthread()
@@ -34,7 +36,7 @@ lem_utils.spawn2 = function (f, ...)
 		local tid_resume = g_waittid_map[tid]
 		if tid_resume then
 			g_waittid_map[tid] = nil
-			coroutine.resume(tid_resume, tid)
+			coroutine_resume(tid_resume, tid)
 		end
 	end, ...)
 
@@ -43,7 +45,9 @@ lem_utils.spawn2 = function (f, ...)
 	return tid
 end
 
-lem_utils.waittid = function (tid_list)
+lem_utils.spawn2 = spawn2
+
+local function waittid(tid_list)
 	local tid_count = #tid_list
 	local current_tid = thisthread()
 	local i = 0
@@ -65,6 +69,68 @@ lem_utils.waittid = function (tid_list)
 
 	return tid_count
 end
+
+lem_utils.waittid = waittid
+
+local coro_yield = coroutine.yield
+local table_unpack
+
+if _VERSION == 'Lua 5.1' then
+	table_unpack = unpack
+else
+	table_unpack = table.unpack
+end
+
+local thread_queue = {
+	run = function(self)
+		self.running = self.running or false
+		self.cursor = self.cursor or 1
+
+		if self.running == false then
+			local t = self.tidlist[self.cursor]
+			self.running = true
+			yield()
+			if t then
+				coroutine_resume(t)
+			else
+				self.running = false
+				self.cursor = 1
+				self.tidlist = {}
+			end
+		end
+	end,
+	append = function (self, fun)
+		self.tidlist = self.tidlist or {}
+		local ret
+		local tid = spawn2(function ()
+			self.tidlist[#self.tidlist+1] = thisthread()
+			coro_yield()
+			ret = {fun()}
+
+			self.running = false
+		  self.cursor = self.cursor + 1
+			self:run()
+		end)
+
+		spawn(function ()
+			self:run()
+		end)
+
+		waittid({tid})
+
+		return table_unpack(ret)
+	end
+}
+
+local thread_queue_mt = { __index = thread_queue }
+
+local new_thread_queue = function ()
+	local o = {}
+	setmetatable(o, thread_queue_mt)
+	return o
+end
+
+lem_utils.new_thread_queue = new_thread_queue
 
 lem_utils.usleep = function (t)
 	lem_utils.sleep(t/1000.)
