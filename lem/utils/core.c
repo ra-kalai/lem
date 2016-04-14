@@ -18,6 +18,7 @@
 
 #include <sys/time.h>
 #include <lem.h>
+#include <stdlib.h>
 
 static int
 sleeper_wakeup(lua_State *T)
@@ -219,6 +220,51 @@ utils_poolconfig(lua_State *T)
 	return 0;
 }
 
+static size_t
+fast_szstr(const char *in_str, size_t len, char *out_str)
+{
+	char *out = out_str;
+	size_t i;
+	*out++ = '"';
+	for(i=0;i<len;i++) {
+		uint8_t x = ((uint8_t*)in_str)[i];
+		if (x <= 9) {
+			*out++ = '\\';
+			*out++ = '0' + x % 10;
+		} else if (x <= 99) {
+			*out++ = '\\';
+			*out++ = '0' + x / 10;
+			*out++ = '0' + x % 10;
+		} else {
+			*out++ = '\\';
+			*out++ = '0' + x / 100;
+			*out++ = '0' + x / 10 % 10;
+			*out++ = '0' + x % 10;
+		}
+	}
+
+	*out++ = '"';
+
+	return out - out_str;
+}
+
+static int
+utils_szstr(lua_State *T)
+{
+	const char *str;
+	size_t len;
+
+	str = lua_tolstring(T, 1, &len);
+	size_t out_len;
+	char *out_str = (char*)lem_xmalloc(len*4+2);
+
+	out_len = fast_szstr(str, len, out_str);
+	lua_pushlstring(T, out_str, out_len);
+	free(out_str);
+
+	return 1;
+}
+
 int
 luaopen_lem_utils_core(lua_State *L)
 {
@@ -273,6 +319,10 @@ luaopen_lem_utils_core(lua_State *L)
 	/* set poolconfig function */
 	lua_pushcfunction(L, utils_poolconfig);
 	lua_setfield(L, -2, "poolconfig");
+
+	/* a lua quote escape string */
+	lua_pushcfunction(L, utils_szstr);
+	lua_setfield(L, -2, "szstr");
 
 	return 1;
 }

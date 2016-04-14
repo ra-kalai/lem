@@ -94,44 +94,19 @@ do
 		loadstring = load
 	end
 
-	local tr_c_map = {
-		["\a"]= "\\a",
-		["\b"]= "\\b",
-		["\f"]= "\\f",
-		["\n"]= "\\n",
-		["\r"]= "\\r",
-		["\t"]= "\\t",
-		["\v"]= "\\v",
-		["\""]= "\\\"",
-		["\\"]= "\\\\",
-	}
-
-	local function char(c)
-		local r = tr_c_map[c]
-		if r then return r end
-
-		return format("\\%03d", c:byte())
-	end
-
-	local function szstr(s)
-		return
-		format('"%s"',
-			s :gsub("[^0-9a-zA-Z\t %._-@/()%#!{|}~:;<=>?$&*+`%]%[]", char))
-				:gsub("\\([0-9][0-9][0-9])([^0-9])",function (a, b)
-					return '\\'..tonumber(a)..b
-				end)
-	end
+	local szstr = lem_utils.szstr
 
 	local function szfun(f)
-		local ret = {}
-		ret[#ret+1] = '(function ()'
-		ret[#ret+1] = 'local n = {}'
-		ret[#ret+1] = 'local f = '
-		ret[#ret+1] = loadstring_fun
-		ret[#ret+1] = '('
-		ret[#ret+1] = szstr(string_dump(f))
-		ret[#ret+1] = ')'
-		ret[#ret+1] = 'local t = {'
+		local ret = {
+		 '(function ()',
+		 'local n = {}',
+		 'local f = ',
+		 loadstring_fun,
+		 '(',
+		 szstr(string_dump(f)),
+		 ')',
+		 'local t = {',
+		}
 
 		local i = 1
 
@@ -203,8 +178,7 @@ do
 		local value = szany(d, code, {0})
 		code[#code+1] = "return "..value
 		if #code == 2 then return code[2]
-		else return table.concat(code, "\n")
-		end
+		else return table.concat(code, "\n") end
 	end
 
 	lem_utils.serialize = serialize
