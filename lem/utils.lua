@@ -84,12 +84,11 @@ end
 
 local thread_queue = {
 	run = function(self)
-		self.cursor = self.cursor or 1
 
 		if self.running == false then
 			local t = self.tidlist[self.cursor]
-			self.running = true
 
+			self.running = true
 			if t then
 				resume(t)
 			else
@@ -106,9 +105,8 @@ local thread_queue = {
 			self.tidlist[#self.tidlist+1] = thisthread()
 			if self.running == true then
 				coro_yield()
-			else
-				self.running = true
 			end
+			self.running = true
 			ret = {fun()}
 
 			self.running = false
@@ -116,9 +114,6 @@ local thread_queue = {
 			self:run()
 		end)
 
-		spawn(function ()
-			self:run()
-		end)
 
 		waittid({tid})
 
@@ -129,7 +124,7 @@ local thread_queue = {
 local thread_queue_mt = { __index = thread_queue }
 
 local new_thread_queue = function ()
-	local o = {running = false}
+	local o = {running = false, cursor=1}
 	setmetatable(o, thread_queue_mt)
 	return o
 end
