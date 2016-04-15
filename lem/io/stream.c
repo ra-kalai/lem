@@ -232,7 +232,7 @@ stream__write(lua_State *T, struct stream *s)
 		s->out += bytes;
 		s->out_len -= bytes;
 		while (s->out_len == 0) {
-			if (s->idx == lua_gettop(T)) {
+			if (s->idx >= lua_gettop(T)) {
 				lua_pushboolean(T, 1);
 				return 1;
 			}
