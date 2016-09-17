@@ -23,9 +23,9 @@ local format = string.format
 
 local M = {}
 
-local args_meta = {}
+local ArgsInfo = {}
 
-args_meta.is_flag_set = function (self, arg)
+ArgsInfo.is_flag_set = function (self, arg)
 	if self[arg] then
 		return (self[arg] and self[arg] > 0)
 	else
@@ -33,7 +33,7 @@ args_meta.is_flag_set = function (self, arg)
 	end
 end
 
-args_meta.get_last_val = function (self, arg)
+ArgsInfo.get_last_val = function (self, arg)
 	if self[arg] then
 		return self[arg][#self[arg]]
 	else
@@ -41,12 +41,13 @@ args_meta.get_last_val = function (self, arg)
 	end
 end
 
+ArgsInfo.__index = ArgsInfo
 
 M.parse_arg = function (args, argv, start)
 	start = start or 1
 	argv = argv or {}
 	local ret = {self_exe = argv[0], last_arg = {}}
-	setmetatable(ret, {__index=args_meta})
+	setmetatable(ret, ArgsInfo)
 	local err
 
 	local pmap = {}
@@ -63,15 +64,14 @@ M.parse_arg = function (args, argv, start)
 		local argtry = carg
 
 		if argtry ~= '-' and argtry ~= '--' and #argtry>1 then
-			argtry = carg:sub(2)
+			argtry = carg:gsub("^-*", '')
 		end
 
 		if ret['--'] == nil and ret.last_arg[0] == nil and pmap[argtry] ~= nil then
 			local key = pmap[argtry][2]
 
 			if (pmap[argtry][3].type == 'counter') then
-				ret[key] = ret[key] or 0
-				ret[key] = ret[key] + 1
+				ret[key] = (ret[key] or 0) + 1
 			else
 				ret[key] = ret[key] or {}
 				if i+1 <= #argv then
@@ -103,7 +103,11 @@ M.parse_arg = function (args, argv, start)
 	if err == nil then
 		for i, v in pairs(args.possible) do
 			if v[3].default_value ~= nil and ret[v[2]] == nil then
-				ret[v[2]] = {v[3].default_value}
+				if v[3].type ~= "counter" then
+					ret[v[2]] = {v[3].default_value}
+				else
+					ret[v[2]] = v[3].default_value
+				end
 			end
 		end
 	end
@@ -172,7 +176,7 @@ M.display_usage= function (args, err)
 			end
 		end
 	end
-  
+
 	os.exit(1)
 end
 
@@ -196,21 +200,24 @@ M.lem_main = function ()
 
 	local LEM_VERSION = format("A Lua Event Machine 0.4 (%s) Copyright (C) 2011-2015 Emil Renner Berthing\n", _VERSION)
 
-	local function start_repl() 
+	local function start_repl()
 		local r = require 'lem.repl'
 		local _, err = r.repl('stdin', io.stdin, io.stdout)
 		print(err or '')
 	end
 
+	local function showVersion()
+		io.stdout:write(LEM_VERSION)
+		showVersion = function () end
+	end
+
 	if arg[0] == nil then
 		-- if no agument is pass it is equivalent to -i
-		io.stdout:write(LEM_VERSION)
+		showVersion()
 		start_repl()
-	else 
+	else
 		-- parse argument
 		local args = {
-			min_arg = 0,
-			strict = false,
 			last_arg = "[script [args]...]",
 			intro = "Available options are:",
 			possible = {
@@ -239,19 +246,28 @@ M.lem_main = function ()
 			M.display_usage(args, {self_exe=arg[-1]})
 		end
 
-		if parg:is_flag_set('interactive') then
-			io.stdout:write(LEM_VERSION)
+		if parg:is_flag_set('interactive') or
+			 parg:is_flag_set('version') then
+			showVersion()
 		end
 
-
-		if (parg.stat) then
-			for i, v in pairs(parg.stat) do
-				load(v)()
+		if parg.stat then
+			local stat = parg.stat
+			for i = 1, #stat do
+				local ret, err = pcall(load(stat[i]))
+				if err then
+					stderr_print(err.."\n")
+					os.exit(1)
+				end
 			end
 		end
 
 		if parg:is_flag_set('-') then
-			pcall(load(io.stdin:read("*a")))
+			local ret, err = pcall(load(io.stdin:read("*a")))
+			if err then
+				stderr_print(err.."\n")
+				os.exit(1)
+			end
 		end
 
 		if parg:get_last_val('bytecode') then
@@ -259,9 +275,9 @@ M.lem_main = function ()
 				local file = io.open(script_to_convert)
 				assert(file, "could not open file " .. script_to_convert)
 				file = file:read("*a")
-				script_load, err = load(file)
+				local script_load, err = load(file)
 				assert(err == nil, 'could not load file ' .. script_to_convert)
-				print(string.dump(script_load))
+				io.stdout:write(string.dump(script_load))
 
 				os.exit(0);
 			end
@@ -271,7 +287,7 @@ M.lem_main = function ()
 			local script_to_run_filepath = parg.last_arg[0]
 			local script_to_run, err = loadfile(script_to_run_filepath)
 
-			if err ~= nil then
+			if err then
 				stderr_print('could not loadfile %s\n%s\n', script_to_run_filepath, err)
 				os.exit(1)
 			end
@@ -285,10 +301,7 @@ M.lem_main = function ()
 			start_repl()
 		end
 
-		if parg:is_flag_set('version') then
-			io.stdout:write(LEM_VERSION)
-			os.exit(0)
-		end
+		os.exit(0)
 	end
 end
 
