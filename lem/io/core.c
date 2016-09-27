@@ -151,6 +151,10 @@ error:
 	return luaL_argerror(T, idx, "invalid permissions");
 }
 
+
+static const int ip_famnumber[] = { AF_UNSPEC, AF_INET, AF_INET6 };
+static const char *const ip_famnames[] = { "any", "ipv4", "ipv6", NULL };
+
 #include "file.c"
 #include "stream.c"
 #include "server.c"
@@ -689,6 +693,68 @@ io_set_collect_interval(lua_State *T)
 	return 0;
 }
 
+struct ip_addr {
+  struct sockaddr addr;
+  int size;
+};
+
+static int
+io_sendto(lua_State *T)
+{
+	int fd = lua_tointeger(T, 1);
+  size_t len;
+  const char *data = lua_tolstring(T, 2, &len);
+	int flags = lua_tointeger(T, 3);
+	struct ip_addr *u = lua_touserdata(T, 4);
+
+
+  int ret = 0;
+
+  ret = sendto(fd, data, len, flags, &u->addr, u->size);
+
+  if (ret < 0) {
+    lua_pushnil(T);
+    lua_pushfstring(T, "sendto error: %s", strerror(ret));
+    return 2;
+  }
+
+  lua_pushinteger(T, ret);
+
+	return 1;
+}
+
+static int
+io_craftaddr(lua_State *T)
+{
+  size_t len;
+  const char *ip = lua_tolstring(T, 1, &len);
+	int port = lua_tointeger(T, 2);
+	int family = luaL_checkoption(T, 3, "ipv4", ip_famnames);
+
+  if (family == 1||family==2) {
+    struct ip_addr *addr = lua_newuserdata(T, sizeof (struct ip_addr));
+
+    if (family == 1) {
+      struct sockaddr_in *ip4addr = (struct sockaddr_in*)addr;
+      ip4addr->sin_family = AF_INET;
+      ip4addr->sin_port = htons(port);
+      inet_pton(AF_INET, ip, &ip4addr->sin_addr);
+      addr->size = sizeof(*ip4addr);
+
+    } else if (family == 2) {
+      struct sockaddr_in6 *ip6addr = (struct sockaddr_in6*)addr;
+      ip6addr->sin6_family = AF_INET6;
+      ip6addr->sin6_port = htons(port);
+      inet_pton(AF_INET6, ip, &ip6addr->sin6_addr);
+      addr->size = sizeof(*ip6addr);
+    }
+  } else {
+    return 0;
+  }
+
+	return 1;
+}
+
 int
 luaopen_lem_io_core(lua_State *L)
 {
@@ -799,6 +865,9 @@ luaopen_lem_io_core(lua_State *L)
 	/* mt.close = <server_close> */
 	lua_pushcfunction(L, server_close);
 	lua_setfield(L, -2, "close");
+	/* mt.fileno = <server_fileno> */
+	lua_pushcfunction(L, server_fileno);
+	lua_setfield(L, -2, "fileno");
 	/* mt.interrupt = <server_interrupt> */
 	lua_pushcfunction(L, server_interrupt);
 	lua_setfield(L, -2, "interrupt");
@@ -891,6 +960,12 @@ luaopen_lem_io_core(lua_State *L)
 	/* set set_collect_interval function */
 	lua_pushcfunction(L, io_set_collect_interval);
 	lua_setfield(L, -2, "set_collect_interval");
+
+	lua_pushcfunction(L, io_sendto);
+	lua_setfield(L, -2, "sendto");
+
+	lua_pushcfunction(L, io_craftaddr);
+	lua_setfield(L, -2, "craftaddr");
 
 	return 1;
 }

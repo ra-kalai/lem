@@ -51,6 +51,17 @@ server_closed(lua_State *T)
 }
 
 static int
+server_fileno(lua_State *T)
+{
+	struct ev_io *w;
+
+	luaL_checktype(T, 1, LUA_TUSERDATA);
+	w = lua_touserdata(T, 1);
+	lua_pushinteger(T, w->fd);
+	return 1;
+}
+
+static int
 server_busy(lua_State *T)
 {
 	struct ev_io *w;
@@ -316,13 +327,13 @@ server_recvfrom_cb(EV_P_ struct ev_io *w, int revents)
 																	&((struct sockaddr_in*)&client_addr)->sin_addr.s_addr,
 																	ip_address,
 																	sizeof ip_address));
-			lua_pushinteger(T, ((struct sockaddr_in*)&client_addr)->sin_port);
+			lua_pushinteger(T, htons(((struct sockaddr_in*)&client_addr)->sin_port));
 		} else if (client_addr.ss_family == AF_INET6) {
 			lua_pushstring(T, inet_ntop(client_addr.ss_family,
 																	&((struct sockaddr_in6*)&client_addr)->sin6_addr,
 																	ip_address,
 																	sizeof ip_address));
-			lua_pushinteger(T, ((struct sockaddr_in6*)&client_addr)->sin6_port);
+			lua_pushinteger(T, htons(((struct sockaddr_in6*)&client_addr)->sin6_port));
 		}
 
 		/* move function and datagram and ip and port to new thread */

@@ -26,8 +26,6 @@ struct udp_getaddr {
 	int err;
 };
 
-static const int udp_famnumber[] = { AF_UNSPEC, AF_INET, AF_INET6 };
-static const char *const udp_famnames[] = { "any", "ipv4", "ipv6", NULL };
 
 static void
 udp_connect_work(struct lem_async *a)
@@ -35,7 +33,7 @@ udp_connect_work(struct lem_async *a)
 	struct udp_getaddr *g = (struct udp_getaddr *)a;
 	struct addrinfo hints = {
 		.ai_flags     = 0,
-		.ai_family    = udp_famnumber[g->sock],
+		.ai_family    = ip_famnumber[g->sock],
 		.ai_socktype  = SOCK_DGRAM,
 		.ai_protocol  = IPPROTO_UDP,
 		.ai_addrlen   = 0,
@@ -151,7 +149,7 @@ udp_connect(lua_State *T)
 {
 	const char *node = luaL_checkstring(T, 1);
 	const char *service = luaL_checkstring(T, 2);
-	int family = luaL_checkoption(T, 3, "any", udp_famnames);
+	int family = luaL_checkoption(T, 3, "any", ip_famnames);
 	int broadcast = lua_isboolean(T, 4);
 	if (broadcast) {
 		lua_toboolean(T, 4);

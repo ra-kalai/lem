@@ -38,16 +38,13 @@ struct tcp_getaddr {
 	};
 };
 
-static const int tcp_famnumber[] = { AF_UNSPEC, AF_INET, AF_INET6 };
-static const char *const tcp_famnames[] = { "any", "ipv4", "ipv6", NULL };
-
 static void
 tcp_connect_work(struct lem_async *a)
 {
 	struct tcp_getaddr *g = (struct tcp_getaddr *)a;
 	struct addrinfo hints = {
 		.ai_flags     = 0,
-		.ai_family    = tcp_famnumber[g->family],
+		.ai_family    = ip_famnumber[g->family],
 		.ai_socktype  = SOCK_STREAM,
 		.ai_protocol  = IPPROTO_TCP,
 		.ai_addrlen   = 0,
@@ -186,7 +183,7 @@ tcp_connect(lua_State *T)
 {
 	const char *node = luaL_checkstring(T, 1);
 	const char *service = luaL_checkstring(T, 2);
-	int family = luaL_checkoption(T, 3, "any", tcp_famnames);
+	int family = luaL_checkoption(T, 3, "any", ip_famnames);
 	int argt;
 	struct tcp_getaddr *g;
 

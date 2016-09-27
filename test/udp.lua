@@ -31,10 +31,14 @@ if arg[1] == 'client' then
 	for i, payload in pairs(payload_list) do
 		sock:write(payload)
 	end
+	print(sock:read())
+	print(sock:read())
 else
 	sock = io.udp.listen4("*", 3128)
 	sock:autospawn(function (datagram, ip, port)
 		print(datagram, ip, port)
+		local addr = io.craftaddr(ip, port)
+		io.sendto(sock:fileno(), "blaaaaaa", 0, addr)
 	end)
 end
 
