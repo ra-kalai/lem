@@ -559,3 +559,13 @@ stream_sendfile(lua_State *T)
 	lua_settop(T, 2);
 	return lua_yield(T, 2);
 }
+
+static int
+stream_fileno(lua_State *T)
+{
+	struct stream *s;
+	luaL_checktype(T, 1, LUA_TUSERDATA);
+	s = lua_touserdata(T, 1);
+	lua_pushinteger(T, s->w.fd);
+  return 1;
+}

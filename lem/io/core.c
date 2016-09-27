@@ -710,7 +710,11 @@ io_sendto(lua_State *T)
 
   int ret = 0;
 
-  ret = sendto(fd, data, len, flags, &u->addr, u->size);
+  if (u) {
+    ret = sendto(fd, data, len, flags, &u->addr, u->size);
+  } else {
+    ret = sendto(fd, data, len, flags, NULL, 0);
+  }
 
   if (ret < 0) {
     lua_pushnil(T);
@@ -833,6 +837,9 @@ luaopen_lem_io_core(lua_State *L)
 	/* mt.sendfile = <stream_sendfile> */
 	lua_pushcfunction(L, stream_sendfile);
 	lua_setfield(L, -2, "sendfile");
+	/* mt.fileno = <stream_fileno> */
+	lua_pushcfunction(L, stream_fileno);
+	lua_setfield(L, -2, "fileno");
 	/* insert io.stdin stream */
 	push_stdstream(L, STDIN_FILENO);
 	lua_setfield(L, -3, "stdin");
