@@ -302,7 +302,6 @@ M.lem_main = function ()
 		end
 
 		if parg:is_flag_set('version') then
-			io.stdout:write(LEM_VERSION)
 			os.exit(0)
 		end
 	end
