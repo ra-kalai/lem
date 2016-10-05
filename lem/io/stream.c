@@ -242,7 +242,7 @@ stream__write(lua_State *T, struct stream *s)
 	err = errno;
 	lem_debug("wrote %ld bytes to fd %d", bytes, s->w.fd);
 
-	if (bytes < 0 && (err == EAGAIN || err == EINTR))
+	if (bytes < 0 && (err == EAGAIN || err == EINTR || err == ECONNREFUSED))
 		return 0;
 
 	s->open = 0;
