@@ -72,9 +72,9 @@ ifeq ($(OS), Windows_NT)
 clibs := $(clibs:.so=.dll)
 endif
 
-.PHONY: all strip install clean
+.PHONY: all strip install clean bin/static-llib.c bin/static-clib.c
 
-all: bin/lem bin/local-lem lem.pc $(clibs) bin/lem-s
+all: bin/lem bin/local-lem lem.pc $(clibs)
 
 debug: bin/lem lem.pc $(clibs)
 
@@ -125,7 +125,7 @@ bin/local-lem: bin/lem
 
 bin/static-llib.c: bin/local-lem $(llibs) bin/pack-lib.lua
 	$E '  LUA-TO-C    $@'
-	bin/pack-lib.lua bin/static-llib.c bin/static-clib-extra.h
+	bin/pack-lib.lua bin/static-llib.c bin/static-clib-extra.h bin/static-extra-objlist
 
 bin/lem-s.o: CPPFLAGS += -DSTATIC_LEM
 bin/lem-s.o: CPPFLAGS += -D'LEM_LDIR="$(lmoddir)/"'
@@ -135,7 +135,7 @@ bin/lem-s.o:  bin/lem.c bin/static-llib.c bin/static-clib.c
 
 bin/lem-s: $(objects_static)
 	$E '  LD    $@'
-	$Q$(CC) $^ -o $@ -rdynamic $(LDFLAGS) $(LIBS)
+	$Q$(CC) $^ $(shell cat bin/static-extra-objlist) -o $@ -rdynamic $(LDFLAGS) $(LIBS)
 
 %.so: %.c include/lem.h
 	$E '  CCLD  $@'

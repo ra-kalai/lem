@@ -70,12 +70,13 @@ local core_lua_file_list = {'lem/*/*.lua', 'lem/*.lua'}
 local cmd = nil
 local extra_lua_file = {}
 local extra_c_files = {}
+local extra_object = {}
+local extra_luaopen = {}
 
 local lem_extra_pack = os.getenv('LEM_EXTRA_PACK') or ''
 
 local basepath
 for manifest in lem_extra_pack:gmatch("([^:]+):?") do
-	print(manifest)
 	basepath = manifest:gsub("[^/]*$", '')
 	local manifest = loadfile(manifest)()
 
@@ -95,6 +96,20 @@ for manifest in lem_extra_pack:gmatch("([^:]+):?") do
 			if v[1] == 'extra' then
 				extra_c_files[#extra_c_files + 1] = {v[2], basepath .. v[2] }
 			end
+		end
+	end
+
+	if manifest.object_files then
+		for i, v in pairs(manifest.object_files) do
+			if v[1] == '.o' then
+				extra_object[#extra_object + 1] = {v[2], basepath .. v[2] }
+			end
+		end
+	end
+
+	if manifest.luaopen then
+		for i, v in pairs(manifest.luaopen) do
+			extra_luaopen[#extra_luaopen + 1] = v
 		end
 	end
 end
@@ -187,7 +202,11 @@ out = [[
 	local o = {}
 
 	for i, v in pairs(extra_c_files) do
-		o[#o + 1] = format('#include "../%s"', v[2])
+		o[#o + 1] = format('#include "../%s"\n', v[2])
+	end
+
+	for i, v in pairs(extra_luaopen) do
+		o[#o + 1] = format('extern int %s(lua_State *);\n', v[2])
 	end
 
 	return table.concat(o)
@@ -197,6 +216,7 @@ end)()
 
 
 #else
+/* on 2nd include, preload these libraries */
 
 ]]
 ..
@@ -213,6 +233,10 @@ end)()
 																			)
 	end
 
+	for i, v in pairs(extra_luaopen) do
+		o[#o + 1] = format('{"%s", %s},', v[1], v[2])
+	end
+
 	return table.concat(o)
 end)()
 ..
@@ -222,6 +246,22 @@ end)()
 ]=]
 
 out_file = io.open(arg[2], "w")
+out_file:write(out)
+out_file:close()
+
+out_file = io.open(arg[3], "w")
+
+;
+
+(function ()
+	local o = {}
+	for i, v in pairs(extra_object) do
+		o[#o + 1] = format('%s ', v[2])
+	end
+	out = table.concat(o)
+	print(out)
+end)()
+
 out_file:write(out)
 out_file:close()
 
