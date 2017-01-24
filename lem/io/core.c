@@ -831,6 +831,14 @@ luaopen_lem_io_core(lua_State *L)
 	lua_pushcfunction(L, stream_uncork);
 	lua_setfield(L, -2, "uncork");
 #endif
+#ifdef TCP_NODELAY
+	/* mt.nodelay = <stream_nodelay> */
+	lua_pushcfunction(L, stream_nodelay);
+	lua_setfield(L, -2, "nodelay");
+	/* mt.nagle = <stream_nagle> */
+	lua_pushcfunction(L, stream_nagle);
+	lua_setfield(L, -2, "nagle");
+#endif
 	/* mt.getpeer = <stream_getpeer> */
 	lua_pushcfunction(L, stream_getpeer);
 	lua_setfield(L, -2, "getpeer");

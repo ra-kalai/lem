@@ -351,6 +351,38 @@ stream_uncork(lua_State *T)
 	return stream_setcork(T, 0);
 }
 #endif
+#ifdef TCP_NODELAY
+static int
+stream_setnodelay(lua_State *T, int state)
+{
+	struct stream *s;
+
+	luaL_checktype(T, 1, LUA_TUSERDATA);
+	s = lua_touserdata(T, 1);
+	if (!s->open)
+		return io_closed(T);
+	if (s->w.data != NULL)
+		return io_busy(T);
+
+	if (setsockopt(s->w.fd, IPPROTO_TCP, TCP_NODELAY, &state, sizeof(int)))
+		return io_strerror(T, errno);
+
+	lua_pushboolean(T, 1);
+	return 1;
+}
+
+static int
+stream_nodelay(lua_State *T)
+{
+	return stream_setnodelay(T, 1);
+}
+
+static int
+stream_nagle(lua_State *T)
+{
+	return stream_setnodelay(T, 0);
+}
+#endif
 
 static int
 stream_getpeer(lua_State *T)
@@ -567,5 +599,6 @@ stream_fileno(lua_State *T)
 	luaL_checktype(T, 1, LUA_TUSERDATA);
 	s = lua_touserdata(T, 1);
 	lua_pushinteger(T, s->w.fd);
-  return 1;
+
+	return 1;
 }

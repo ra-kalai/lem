@@ -282,7 +282,7 @@ runqueue_pop(EV_P_ struct ev_idle *w, int revents)
 
 			case LUA_YIELD: /* thread yielded */
 				lem_debug("thread yielded");
-				break;
+				return ;
 
 			case LUA_ERRERR: /* error running error handler */
 				lem_debug("thread errored while running error handler");
@@ -371,7 +371,7 @@ queue_file(int argc, char *argv[], int fidx)
 
 	{
 		const char lem_load_repl[] = "require('lem.cmd').lem_main()";
-		lua_load_ret = luaL_loadbuffer(T, lem_load_repl, strlen(lem_load_repl), "load_repl");
+		lua_load_ret = luaL_loadbuffer(T, lem_load_repl, sizeof lem_load_repl-1, "load_repl");
 	}
 
 	switch (lua_load_ret) {
