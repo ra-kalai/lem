@@ -151,12 +151,25 @@ end
 Hathaway.handle = handle
 
 function Hathaway:run(host, port)
+	local conf = {}
 	local server, err
 
-	if port then
-		server, err = httpserv.new(host, port, self.handler)
+	if type(host) == "table" then
+		conf = host
 	else
-		server, err = httpserv.new(host, self.handler)
+		if port then
+			conf.host = host
+			conf.port = port
+		else
+			conf.socket = host
+		end
+	end
+
+
+	if conf.socket then
+		server, err = httpserv.new(conf.socket, self.handler)
+	else
+		server, err = httpserv.new(conf.host, conf.port, self.handler)
 	end
 
 	if not server then
@@ -167,7 +180,7 @@ function Hathaway:run(host, port)
 	self.server = server
 	server.debug = self.debug
 
-	local ok, err = server:run()
+	local ok, err = server:run(conf.wrapHTTP)
 	if not ok and err ~= 'interrupted' then
 		self.debug('run', err)
 		return nil, err

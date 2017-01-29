@@ -207,8 +207,12 @@ local Server = {}
 Server.__index = Server
 M.Server = Server
 
-function Server:run()
-	return self.socket:autospawn(function(...) return handleHTTP(self, ...) end)
+function Server:run(wrapHTTP)
+	if wrapHTTP == nil then
+		return self.socket:autospawn(function(client) handleHTTP(self, client) end)
+	else
+		return self.socket:autospawn(function(client) wrapHTTP(handleHTTP, self, client) end)
+	end
 end
 
 function Server:close()
