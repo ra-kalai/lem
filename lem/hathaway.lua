@@ -204,6 +204,8 @@ function Hathaway:import(env)
 	env.DELETEM  = function(...) self:DELETEM(...) end
 	env.OPTIONSM = function(...) self:OPTIONSM(...) end
 	env.Hathaway = function(...) return self:run(...) end
+
+	return self
 end
 
 local function new()
