@@ -962,6 +962,11 @@ luaopen_lem_io_core(lua_State *L)
 	lua_pushcclosure(L, unix_listen, 1);
 	lua_setfield(L, -2, "listen");
 
+	/* insert the socketpair function */
+	lua_getfield(L, -2, "Stream"); /* upvalue 1 = Stream */
+	lua_pushcclosure(L, unix_socketpair, 1);
+	lua_setfield(L, -2, "socketpair");
+
 	/* insert the unix.passfd_* function */
 	lua_pushcfunction(L, unix_passfd_send);
 	lua_setfield(L, -2, "passfd_send");

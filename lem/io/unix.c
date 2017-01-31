@@ -124,6 +124,76 @@ unix_connect(lua_State *T)
 	return lua_yield(T, 2);
 }
 
+struct unix_create_socketpair {
+	struct lem_async a;
+	lua_State *T;
+	int fd[2];
+};
+
+static void
+unix_socketpair_work(struct lem_async *a)
+{
+	struct unix_create_socketpair *u = (struct unix_create_socketpair *)a;
+	int ret = socketpair(AF_UNIX, SOCK_STREAM, 0, u->fd);
+	if (ret == -1) {
+		u->fd[0] = -1;
+		u->fd[1] = errno;
+    return ;
+	}
+
+	/* make sockets non-blocking */
+	if (fcntl(u->fd[0], F_SETFL, O_NONBLOCK) == -1) {
+		u->fd[0] = -1;
+		u->fd[1] = errno;
+    return ;
+	}
+
+	if (fcntl(u->fd[1], F_SETFL, O_NONBLOCK) == -1) {
+		u->fd[0] = -1;
+		u->fd[1] = errno;
+    return ;
+	}
+}
+
+static void
+unix_socketpair_reap(struct lem_async *a)
+{
+	struct unix_create_socketpair *u = (struct unix_create_socketpair *)a;
+	lua_State *T = u->T;
+	int s1 = u->fd[0], s2 = u->fd[1];
+
+	free(u);
+
+	if (s1 == -1) {
+		lua_pushnil(T);
+		lua_pushfstring(T, "error creating socket: %s",
+				strerror(s2));
+		return ;
+	}
+
+	stream_new(T, s1, 2);
+	stream_new(T, s2, 2);
+
+	lem_queue(T, 2);
+}
+
+static int
+unix_socketpair(lua_State *T)
+{
+	struct unix_create_socketpair *u;
+
+	u = lem_xmalloc(sizeof(struct unix_create_socketpair));
+	lem_async_do(&u->a, unix_socketpair_work, unix_socketpair_reap);
+
+
+	lua_settop(T, 0);
+	lua_pushvalue(T, lua_upvalueindex(1));
+	lua_pushvalue(T, lua_upvalueindex(1));
+
+	u->T = T;
+	return lua_yield(T, 2);
+}
+
 static void
 unix_listen_work(struct lem_async *a)
 {
