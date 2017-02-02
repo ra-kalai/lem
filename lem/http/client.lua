@@ -99,6 +99,7 @@ function M.new()
 end
 
 local req_get = "GET %s HTTP/1.1\r\nHost: %s\r\n%s\r\n"
+local req_method = "%s %s HTTP/1.1\r\nHost: %s\r\n"
 
 local function close(self)
 	local c = self.conn
@@ -116,80 +117,114 @@ local function fail(self, err)
 	return nil, err
 end
 
-function Client:get(url, extra_headers)
-	extra_headers = extra_headers or {
-		Connection = 'keep-alive'
---	Connection = 'close'
-	}
-
-	local proto, domain_and_port, uri = url:match('([a-zA-Z0-9]+)://([^/]+)(/.*)')
-	if not proto then
-		error('Invalid URL', 2)
+function Client:request(request)
+	if type(request) ~= 'table' then
+		error('arg should be a table', 2)
 	end
+
+	local extra_headers = request.extra_headers or {}
+
+	local method = request.method
+	if method == nil then error('missing method', 2) end
+
+	local url = request.url
+	if url == nil then error('missing url', 2) end
+
+	local proto, domain_and_port, path = url:match('([a-zA-Z0-9]+)://([^/]+)(/.*)')
+
+	if proto == nil then error('missing protocol in url', 2) end
+	if domain_and_port == nil then error('missing domain in url', 2) end
+	if path == nil then error('missing path in url', 2) end
+
+	local payload = request.payload or ''
 
 	local rope = {}
 
+	local rope_c = 1
+
+	rope[rope_c] = req_method:format(method, path, domain_and_port)
+
+	rope_c = rope_c + 1
 	if extra_headers then
 		for k, v in pairs(extra_headers) do
-			rope[#rope+1] = format("%s: %s\r\n", k, v)
+			rope[rope_c] = format("%s: %s\r\n", k, v)
+			rope_c = rope_c + 1
 		end
 	end
 
-	local c, err
-	local req = req_get:format(uri, domain_and_port, concat(rope))
+	rope[rope_c] = "\r\n"
+	rope_c = rope_c + 1
+	rope[rope_c] = payload
+
+	local req = concat(rope)
+
 	local res
-	if proto == self.proto and (domain_and_port == self.domain_and_port) then
+	local c
+
+	if proto == self.proto and
+		 domain_and_port == self.domain_and_port then
+
+		-- 2nd request in case connection is keepalive,
+		-- and we didn't timeout..
+
 		c = self.conn
 		if c:write(req) then
 			res = c:read('HTTPResponse')
 		end
+
+		return setmetatable(res, Response)
 	end
 
-	if not res then
-		c = self.conn
-		if c then
-			c:close()
-		end
-
-		local domain
-		local specified_port = domain_and_port:match(':([0-9]+)')
-
-		if specified_port then
-			specified_port = tostring(specified_port)
-			domain = domain_and_port:gsub(':'..specified_port, '')
-		else
-			domain = domain_and_port
-		end
-
-		if proto == 'http' then
-			c, err = io.tcp.connect(domain, specified_port or '80')
-		elseif proto == 'https' then
-			local ssl = self.ssl
-			if not ssl then
-				error('No ssl context defined', 2)
-			end
-			c, err = ssl:connect(domain, specified_port or '443')
-		else
-			error('Unknown protocol', 2)
-		end
-		if not c then return fail(self, err) end
-
-		local ok
-		ok, err = c:write(req)
-		if not ok then return fail(self, err) end
-
-		res, err = c:read('HTTPResponse')
-		if not res then return fail(self, err) end
+	-- it is the first http request / domain changed
+	c = self.conn
+	if c then
+		c:close()
 	end
+
+	local domain
+	local specified_port = domain_and_port:match(':([0-9]+)')
+
+	if specified_port then
+		domain = domain_and_port:gsub(':.*$', '')
+	else
+		domain = domain_and_port
+	end
+
+	if proto == 'http' then
+		c, err = io.tcp.connect(domain, specified_port or '80')
+	elseif proto == 'https' then
+		local ssl = self.ssl
+		if not ssl then
+			error('No ssl context defined', 2)
+		end
+		c, err = ssl:connect(domain, specified_port or '443')
+	else
+		error('Unknown protocol', 2)
+	end
+	if not c then return fail(self, err) end
+
+	local ok
+	ok, err = c:write(req)
+	if not ok then return fail(self, err) end
+
+	res, err = c:read('HTTPResponse')
+	if not res then return fail(self, err) end
 
 	res.conn = c
-	setmetatable(res, Response)
 
 	self.proto = proto
 	self.domain_and_port = domain_and_port
 	self.conn = c
 
-	return res
+	return setmetatable(res, Response)
+end
+
+function Client:get(url, extra_headers)
+	return self:request({
+		method="GET",
+		url=url,
+		extra_headers=extra_headers,
+	})
 end
 
 function Client:download(url, filename)
