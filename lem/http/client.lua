@@ -122,7 +122,7 @@ function Client:request(request)
 		error('arg should be a table', 2)
 	end
 
-	local extra_headers = request.extra_headers or {}
+	local headers = request.headers or {}
 
 	local method = request.method
 	if method == nil then error('missing method', 2) end
@@ -145,8 +145,8 @@ function Client:request(request)
 	rope[rope_c] = req_method:format(method, path, domain_and_port)
 
 	rope_c = rope_c + 1
-	if extra_headers then
-		for k, v in pairs(extra_headers) do
+	if headers then
+		for k, v in pairs(headers) do
 			rope[rope_c] = format("%s: %s\r\n", k, v)
 			rope_c = rope_c + 1
 		end
@@ -223,7 +223,7 @@ function Client:get(url, extra_headers)
 	return self:request({
 		method="GET",
 		url=url,
-		extra_headers=extra_headers,
+		headers=extra_headers,
 	})
 end
 
