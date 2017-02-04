@@ -88,6 +88,13 @@ local function handleHTTP(self, client)
 	repeat
 		local req, err = client:read('HTTPRequest')
 		if not req then self.debug('read', err) break end
+
+		req.headers = {}
+
+		for _, v in pairs(req.header_list) do
+			req.headers[v[1]:lower()] = v[2]
+		end
+
 		local method, version = req.method, req.version
 
 		setmetatable(req, Request)

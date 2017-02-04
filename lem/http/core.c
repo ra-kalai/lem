@@ -196,6 +196,7 @@ static const unsigned char state_table[SMAX][C_MAX] = {
 struct parse_http_state {
 	unsigned int w;
 	unsigned char state;
+	unsigned int header_line_off;
 };
 LEM_BUILD_ASSERT(sizeof(struct parse_http_state) < LEM_INPUTBUF_PSIZE);
 
@@ -214,6 +215,8 @@ parse_http_req_init(lua_State *T, struct lem_inputbuf *b)
 
 	s->w = 0;
 	s->state = S_GO;
+	s->header_line_off = 1;
+
 	parse_http_init(T);
 }
 
@@ -224,6 +227,8 @@ parse_http_res_init(lua_State *T, struct lem_inputbuf *b)
 
 	s->w = 0;
 	s->state = C_GO;
+	s->header_line_off = 1;
+
 	parse_http_init(T);
 }
 
@@ -231,6 +236,7 @@ static int
 parse_http_process(lua_State *T, struct lem_inputbuf *b)
 {
 	struct parse_http_state *s = (struct parse_http_state *)&b->pstate;
+	unsigned int header_line_off = s->header_line_off;
 	unsigned int w = s->w;
 	unsigned int r = b->start;
 	unsigned char state = s->state;
@@ -265,13 +271,12 @@ parse_http_process(lua_State *T, struct lem_inputbuf *b)
 		case XKEY:
 			state = SKEY;
 			lua_pushlstring(T, b->buf, w);
-			lua_rawset(T, -3);
+			lua_rawseti(T, -2, 2);
+			lua_rawseti(T, -2, header_line_off++);
 			w = 0;
 			/* fallthrough */
 
 		case SKEY:
-			if (ch >= 'A' && ch <= 'Z')
-				ch += ('a' - 'A');
 			b->buf[w++] = ch;
 			break;
 
@@ -354,7 +359,10 @@ parse_http_process(lua_State *T, struct lem_inputbuf *b)
 
 		case XCOL:
 			state = SCOL;
+
+			lua_createtable(T, 2, 0);
 			lua_pushlstring(T, b->buf, w);
+			lua_rawseti(T, -2, 1);
 			w = 0;
 			break;
 
@@ -365,12 +373,14 @@ parse_http_process(lua_State *T, struct lem_inputbuf *b)
 			break;
 
 		case XEND:
-			/* in case there are no headers this is false */
-			if (lua_type(T, -1) == LUA_TSTRING) {
+			/* in case there is headers w should not be = 0 ? */
+			if (w) {
 				lua_pushlstring(T, b->buf, w);
-				lua_rawset(T, -3);
+				lua_rawseti(T, -2, 2);
+				lua_rawseti(T, -2, header_line_off++);
 			}
-			lua_setfield(T, -2, "headers");
+
+			lua_setfield(T, -2, "header_list");
 
 			if (r == b->end)
 				b->start = b->end = 0;

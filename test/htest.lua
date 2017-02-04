@@ -29,7 +29,7 @@ local urldecode =  hathaway.urldecode
 local parseform = hathaway.parseform
 
 hathaway.debug = print -- must be set before import()
-hathaway.import()      -- when using single instance API
+hathaway = hathaway.import()      -- when using single instance API
 
 GET('/', function(req, res)
 	print(req.client:getpeer())

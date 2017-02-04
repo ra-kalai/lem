@@ -35,11 +35,14 @@ local utils    = require 'lem.utils'
 local io       = require 'lem.io'
 local hathaway = require 'lem.hathaway'
 
+local urldecode =  hathaway.urldecode
+local parseform = hathaway.parseform
+
 utils.poolconfig(1000,10,10);
 
 hathaway.debug = function() end -- must be set before import()
 								 -- print
-hathaway.import()      -- when using single instance API
+hathaway = hathaway.import()      -- when using single instance API
 
 GET('/', function(req, res)
 	print(req.client:getpeer())
@@ -86,8 +89,8 @@ GET('/dump', function(req, res)
 <table>
 ]], req.method or '', req.uri or '', req.version)
 
-	for k, v in pairs(req.headers) do
-		res:add('  <tr><th>%s</th><td>%s</td></tr>\n', k, v)
+	for k, v in pairs(req.header_list) do
+		res:add('  <tr><th>%s</th><td>%s</td></tr>\n', v[1], v[2])
 	end
 
 	res:add([[
@@ -113,19 +116,6 @@ GET('/dump', function(req, res)
 ]])
 end)
 
-local function urldecode(str)
-	return str:gsub('+', ' '):gsub('%%(%x%x)', function (str)
-		return string.char(tonumber(str, 16))
-	end)
-end
-
-local function parseform(str)
-	local t = {}
-	for k, v in str:gmatch('([^&]+)=([^&]*)') do
-		t[urldecode(k)] = urldecode(v)
-	end
-	return t
-end
 
 POST('/form', function(req, res)
 	res.headers['Content-Type'] = 'text/plain'
@@ -177,19 +167,14 @@ else
 	lfs.remove('socket')
 	local sock = io.tcp.listen('*', 8080)
 	local usock = assert(io.unix.listen('socket', 666))
+
 	utils.spawn(function ()
 		usock:autospawn(function (client)
 			print(io.unix.passfd_send(client, {sock[2]}))
 		end)
 	end)
-	utils.spawn(function ()
-		--Hathaway('*', arg[1] or '8080')
-		Hathaway(sock)
-	end)
-	local sleeper = utils.newsleeper()
-	while true do
-		sleeper:sleep(0.01)
-	end
+
+	Hathaway({socket=sock})
 end
 utils.exit(0) -- otherwise open connections will keep us running
 

@@ -154,9 +154,24 @@ function Hathaway:run(host, port)
 	local conf = {}
 	local server, err
 
+	local old_setup = true
+
+
 	if type(host) == "table" then
-		conf = host
-	else
+		local udataonlyintable = true
+		for i, v in pairs(host) do
+			if type(v) ~= "userdata" then
+				udataonlyintable = false
+			end
+		end
+
+		if udataonlyintable == false then
+			conf = host
+			old_setup = false
+		end
+	end
+
+	if old_setup then
 		if port then
 			conf.host = host
 			conf.port = port

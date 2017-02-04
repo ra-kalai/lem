@@ -159,6 +159,7 @@ function Client:request(request)
 	local req = concat(rope)
 
 	local res
+	local err
 	local c
 
 	if proto == self.proto and
@@ -169,7 +170,13 @@ function Client:request(request)
 
 		c = self.conn
 		if c:write(req) then
-			res = c:read('HTTPResponse')
+			res, err = c:read('HTTPResponse')
+			if not res then return fail(self, err) end
+		end
+
+		res.headers = {}
+		for _, v in pairs(res.header_list) do
+			res.headers[v[1]:lower()] = v[2]
 		end
 
 		return setmetatable(res, Response)
@@ -209,6 +216,11 @@ function Client:request(request)
 
 	res, err = c:read('HTTPResponse')
 	if not res then return fail(self, err) end
+
+	res.headers = {}
+	for _, v in pairs(res.header_list) do
+		res.headers[v[1]:lower()] = v[2]
+	end
 
 	res.conn = c
 
