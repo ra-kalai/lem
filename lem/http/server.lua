@@ -89,11 +89,8 @@ local function handleHTTP(self, client)
 		local req, err = client:read('HTTPRequest')
 		if not req then self.debug('read', err) break end
 
-		req.headers = {}
-
-		for _, v in pairs(req.header_list) do
-			req.headers[v[1]:lower()] = v[2]
-		end
+		req.header_list = http.new_header_list(req.header_list)
+		req.headers = req.header_list:toMap()
 
 		local method, version = req.method, req.version
 

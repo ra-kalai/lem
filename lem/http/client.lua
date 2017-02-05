@@ -22,7 +22,7 @@ local concat = table.concat
 local format = string.format
 
 local io    = require 'lem.io'
-require 'lem.http'
+local http  = require 'lem.http'
 
 local M = {}
 
@@ -98,8 +98,8 @@ function M.new()
 	}, Client)
 end
 
-local req_get = "GET %s HTTP/1.1\r\nHost: %s\r\n%s\r\n"
-local req_method = "%s %s HTTP/1.1\r\nHost: %s\r\n"
+local req_method = "%s %s HTTP/1.1\r\n"
+local req_method_and_host = "%s %s HTTP/1.1\r\nHost: %s\r\n"
 
 local function close(self)
 	local c = self.conn
@@ -122,7 +122,9 @@ function Client:request(request)
 		error('arg should be a table', 2)
 	end
 
+	local header_list = http.new_header_list(request.header_list or {})
 	local headers = request.headers or {}
+
 
 	local method = request.method
 	if method == nil then error('missing method', 2) end
@@ -138,21 +140,25 @@ function Client:request(request)
 
 	local payload = request.payload or ''
 
-	local rope = {}
-
-	local rope_c = 1
-
-	rope[rope_c] = req_method:format(method, path, domain_and_port)
-
-	rope_c = rope_c + 1
-	if headers then
-		for k, v in pairs(headers) do
-			rope[rope_c] = format("%s: %s\r\n", k, v)
-			rope_c = rope_c + 1
-		end
+	-- merge key values from header map
+	for k, v in pairs(headers) do
+		header_list:set(k, v)
 	end
 
-	rope[rope_c] = "\r\n"
+	local host_is_set = header_list:value('host')
+
+	local rope = {}
+	local rope_c = 1
+
+	if host_is_set then
+		rope[rope_c] = req_method:format(method, path)
+	else
+		rope[rope_c] = req_method:format(method, path, domain_and_port)
+	end
+
+	rope_c = rope_c + 1
+	rope[rope_c] = header_list:toString()
+
 	rope_c = rope_c + 1
 	rope[rope_c] = payload
 
@@ -162,28 +168,28 @@ function Client:request(request)
 	local err
 	local c
 
+	c = self.conn
+
 	if proto == self.proto and
 		 domain_and_port == self.domain_and_port then
 
 		-- 2nd request in case connection is keepalive,
 		-- and we didn't timeout..
 
-		c = self.conn
 		if c:write(req) then
 			res, err = c:read('HTTPResponse')
 			if not res then return fail(self, err) end
 		end
 
-		res.headers = {}
-		for _, v in pairs(res.header_list) do
-			res.headers[v[1]:lower()] = v[2]
-		end
+		res.header_list = http.new_header_list(res.header_list)
+		res.headers = res.header_list:toMap()
+
+		res.conn = c
 
 		return setmetatable(res, Response)
 	end
 
 	-- it is the first http request / domain changed
-	c = self.conn
 	if c then
 		c:close()
 	end
@@ -217,10 +223,8 @@ function Client:request(request)
 	res, err = c:read('HTTPResponse')
 	if not res then return fail(self, err) end
 
-	res.headers = {}
-	for _, v in pairs(res.header_list) do
-		res.headers[v[1]:lower()] = v[2]
-	end
+	res.header_list = http.new_header_list(res.header_list)
+	res.headers = res.header_list:toMap()
 
 	res.conn = c
 
