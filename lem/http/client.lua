@@ -153,7 +153,7 @@ function Client:request(request)
 	if host_is_set then
 		rope[rope_c] = req_method:format(method, path)
 	else
-		rope[rope_c] = req_method:format(method, path, domain_and_port)
+		rope[rope_c] = req_method_and_host:format(method, path, domain_and_port)
 	end
 
 	rope_c = rope_c + 1
