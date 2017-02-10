@@ -151,6 +151,15 @@ function Client:request(request)
 		end
 	end
 
+	local https_proxy = request.https_proxy
+	local use_https_proxy = false
+	if https_proxy then
+		if proto == 'https' then
+			proxy_connect_domain, proxy_connect_port = https_proxy:match("([^:]*):(.*)")
+			use_https_proxy = true
+		end
+	end
+
 	-- merge key values from header map
 	for k, v in pairs(headers) do
 		header_list:set(k, v)
@@ -182,7 +191,7 @@ function Client:request(request)
 	c = self.conn
 
 	if proto == self.proto and
-		 domain_and_port == self.domain_and_port then
+		domain_and_port == self.domain_and_port then
 
 		-- 2nd request in case connection is keepalive,
 		-- and we didn't timeout..
@@ -207,6 +216,8 @@ function Client:request(request)
 
 	local domain
 	local specified_port = domain_and_port:match(':([0-9]+)')
+	local connect_domain
+	local connect_port = specified_port
 
 	if specified_port then
 		domain = domain_and_port:gsub(':.*$', '')
@@ -214,22 +225,55 @@ function Client:request(request)
 		domain = domain_and_port
 	end
 
+	connect_domain = domain
+
 	if proxy_connect_domain then
-		domain = proxy_connect_domain
+		connect_domain = proxy_connect_domain
 	end
 
 	if proxy_connect_port then
-		specified_port = proxy_connect_port
+		connect_port = proxy_connect_port
+	end
+
+	if use_https_proxy == true then
+		c, err = io.tcp.connect(connect_domain, connect_port)
+		if not c then return fail(self, err) end
+
+		local proxy_connect_domain_and_port
+		if specified_port == nil then
+			proxy_connect_domain_and_port = domain_and_port .. ':443'
+		else
+			proxy_connect_domain_and_port = domain_and_port
+		end
+
+		c:write(format("CONNECT %s HTTP/1.1\r\nHost: %s\r\nProxy-Connection: Keep-Alive\r\n\r\n",
+			proxy_connect_domain_and_port, proxy_connect_domain_and_port))
+		local l, err = c:read("*l")
+		if err then return fail(self, err) end
+		if l:match("200") then
+			repeat
+				l, err = c:read("*l")
+			until l == "\r" or err
+			if err then return fail(self, err) end
+
+			local ssl = self.ssl
+			if not ssl then
+				error('No ssl context defined', 2)
+			end
+			c, err = ssl:ssl_wrap_socket(c)
+		end
 	end
 
 	if proto == 'http' then
-		c, err = io.tcp.connect(domain, specified_port or '80')
+		c, err = io.tcp.connect(connect_domain, connect_port or '80')
 	elseif proto == 'https' then
-		local ssl = self.ssl
-		if not ssl then
-			error('No ssl context defined', 2)
+		if use_https_proxy == false then
+			local ssl = self.ssl
+			if not ssl then
+				error('No ssl context defined', 2)
+			end
+			c, err = ssl:connect(domain, specified_port or '443')
 		end
-		c, err = ssl:connect(domain, specified_port or '443')
 	else
 		error('Unknown protocol', 2)
 	end
