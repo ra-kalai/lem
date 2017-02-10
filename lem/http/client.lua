@@ -140,6 +140,17 @@ function Client:request(request)
 
 	local payload = request.payload or ''
 
+	local proxy_connect_domain
+	local proxy_connect_port
+
+	local http_proxy = request.http_proxy
+	if http_proxy then
+		if proto == 'http' then
+			proxy_connect_domain, proxy_connect_port = http_proxy:match("([^:]*):(.*)")
+			path = url
+		end
+	end
+
 	-- merge key values from header map
 	for k, v in pairs(headers) do
 		header_list:set(k, v)
@@ -201,6 +212,14 @@ function Client:request(request)
 		domain = domain_and_port:gsub(':.*$', '')
 	else
 		domain = domain_and_port
+	end
+
+	if proxy_connect_domain then
+		domain = proxy_connect_domain
+	end
+
+	if proxy_connect_port then
+		specified_port = proxy_connect_port
 	end
 
 	if proto == 'http' then
