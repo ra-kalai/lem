@@ -18,6 +18,7 @@
 
 #include <sys/time.h>
 #include <lem.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 static int
