@@ -75,7 +75,7 @@ function Response:body()
 		body, err = self.conn:read(len)
 	else
 		if self.headers['connection'] == 'close' then
-			body, err = self.client:read('*a')
+			body, err = self.conn:read('*a')
 		else
 			return nil, 'no content length specified'
 		end
