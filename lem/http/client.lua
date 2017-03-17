@@ -185,6 +185,7 @@ function Client:request(request)
 	local req = concat(rope)
 
 	local res
+	local ok
 	local err
 	local c
 
@@ -196,10 +197,11 @@ function Client:request(request)
 		-- 2nd request in case connection is keepalive,
 		-- and we didn't timeout..
 
-		if c:write(req) then
-			res, err = c:read('HTTPResponse')
-			if not res then return fail(self, err) end
-		end
+		ok, err = c:write(req)
+		if not ok then return fail(self, err) end
+
+		res, err = c:read('HTTPResponse')
+		if not res then return fail(self, err) end
 
 		res.header_list = http.new_header_list(res.header_list)
 		res.headers = res.header_list:toMap()
@@ -246,8 +248,11 @@ function Client:request(request)
 			proxy_connect_domain_and_port = domain_and_port
 		end
 
-		c:write(format("CONNECT %s HTTP/1.1\r\nHost: %s\r\nProxy-Connection: Keep-Alive\r\n\r\n",
+		ok, err = c:write(format("CONNECT %s HTTP/1.1\r\nHost: %s\r\nProxy-Connection: Keep-Alive\r\n\r\n",
+
 			proxy_connect_domain_and_port, proxy_connect_domain_and_port))
+		if not ok then return fail(self, err) end
+
 		local l, err = c:read("*l")
 		if err then return fail(self, err) end
 		if l:match("200") then
@@ -279,7 +284,6 @@ function Client:request(request)
 	end
 	if not c then return fail(self, err) end
 
-	local ok
 	ok, err = c:write(req)
 	if not ok then return fail(self, err) end
 
