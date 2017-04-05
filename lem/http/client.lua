@@ -238,7 +238,7 @@ function Client:request(request)
 	end
 
 	if use_https_proxy == true then
-		c, err = io.tcp.connect(connect_domain, connect_port)
+		c, err = io.tcp.connect(connect_domain, connect_port, request.ip)
 		if not c then return fail(self, err) end
 
 		local proxy_connect_domain_and_port
@@ -270,14 +270,14 @@ function Client:request(request)
 	end
 
 	if proto == 'http' then
-		c, err = io.tcp.connect(connect_domain, connect_port or '80')
+		c, err = io.tcp.connect(connect_domain, connect_port or '80', request.ip)
 	elseif proto == 'https' then
 		if use_https_proxy == false then
 			local ssl = self.ssl
 			if not ssl then
 				error('No ssl context defined', 2)
 			end
-			c, err = ssl:connect(domain, specified_port or '443')
+			c, err = ssl:connect(domain, specified_port or '443', request.ip)
 		end
 	else
 		error('Unknown protocol', 2)
