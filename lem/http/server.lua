@@ -111,8 +111,10 @@ local function handleHTTP(self, client)
 			else
 				if req.path then
 					self.handler(req, res)
-					if res.abort == true or res.detach == true then
+					if res.abort == true then
 						break
+					elseif res.detach == true then
+						return
 					end
 				else
 					response.bad_request(req, res)
@@ -204,9 +206,7 @@ local function handleHTTP(self, client)
 
 	until keep_serving ~= true
 
-	if not res.detach then
-		client:close()
-	end
+	client:close()
 end
 
 local Server = {}
