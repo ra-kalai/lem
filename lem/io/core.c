@@ -839,6 +839,9 @@ luaopen_lem_io_core(lua_State *L)
 	lua_pushcfunction(L, stream_nagle);
 	lua_setfield(L, -2, "nagle");
 #endif
+	/* mt.set_blocking = <stream_set_blocking> */
+	lua_pushcfunction(L, stream_set_blocking);
+	lua_setfield(L, -2, "set_blocking");
 	/* mt.getpeer = <stream_getpeer> */
 	lua_pushcfunction(L, stream_getpeer);
 	lua_setfield(L, -2, "getpeer");

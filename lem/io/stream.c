@@ -385,6 +385,26 @@ stream_nagle(lua_State *T)
 #endif
 
 static int
+stream_set_blocking(lua_State *T)
+{
+	struct stream *s;
+
+	luaL_checktype(T, 1, LUA_TUSERDATA);
+	s = lua_touserdata(T, 1);
+
+	int block = lua_tointeger(T, 2);
+
+	if (!s->open)
+		return io_closed(T);
+
+	if (fcntl(s->w.fd, F_SETFL, block) == -1) {
+		return io_strerror(T, errno);
+	}
+
+	return 0;
+}
+
+static int
 stream_getpeer(lua_State *T)
 {
 	struct stream *s;
