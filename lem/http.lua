@@ -97,7 +97,7 @@ function header_list_mt:toString()
 		v = self[i]
 		if v[2] then
 			rope[rope_i] = v[1] 	rope_i = rope_i + 1
-			rope[rope_i] = ':'  	rope_i = rope_i + 1
+			rope[rope_i] = ': '  	rope_i = rope_i + 1
 			rope[rope_i] = v[2] 	rope_i = rope_i + 1
 			rope[rope_i] = "\r\n"	rope_i = rope_i + 1
 		end
