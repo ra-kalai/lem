@@ -38,16 +38,14 @@ for i=0,10 do
 	towait4[#towait4+1] =
 		spawn2(function (a1)
 			print('..', a1)
-			sleep(i/1000.)
+			sleep((10-i)/100.)
 			print(a1, '..')
 		end, i)
 end
 
-utils.yield()
-
 print('waiting for',#towait4, 'thread to finish')
 local join_count = waittid(towait4)
-print('joined', join_count, ' thread of', #towait4, ";", #towait4 - join_count, ' thread was/were already dead')
+print('joined', join_count, ' thread of', #towait4, ";", #towait4 - join_count, ' thread were dead')
 
 
 -- vim: syntax=lua ts=2 sw=2 noet:

@@ -41,8 +41,6 @@ local function spawn2(f, ...)
 		end
 	end, ...)
 
-	yield()
-
 	return tid
 end
 
