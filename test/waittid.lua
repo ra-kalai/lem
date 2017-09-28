@@ -34,7 +34,7 @@ print('starting some thread')
 
 local towait4 = {}
 
-for i=0,10 do
+for i=1,20 do
 	towait4[#towait4+1] =
 		spawn2(function (a1)
 			print('..', a1)
