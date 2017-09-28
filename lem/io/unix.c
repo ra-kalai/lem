@@ -168,11 +168,12 @@ unix_socketpair_reap(struct lem_async *a)
 		lua_pushnil(T);
 		lua_pushfstring(T, "error creating socket: %s",
 				strerror(s2));
+		lem_queue(T, 2);
 		return ;
 	}
 
-	stream_new(T, s1, 2);
-	stream_new(T, s2, 2);
+	stream_new(T, s1, 1);
+	stream_new(T, s2, 1);
 
 	lem_queue(T, 2);
 }
@@ -185,13 +186,11 @@ unix_socketpair(lua_State *T)
 	u = lem_xmalloc(sizeof(struct unix_create_socketpair));
 	lem_async_do(&u->a, unix_socketpair_work, unix_socketpair_reap);
 
-
-	lua_settop(T, 0);
-	lua_pushvalue(T, lua_upvalueindex(1));
 	lua_pushvalue(T, lua_upvalueindex(1));
 
 	u->T = T;
-	return lua_yield(T, 2);
+
+	return lua_yield(T, 1);
 }
 
 static void

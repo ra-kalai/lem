@@ -91,7 +91,8 @@ io_core_file_list = include/lem-parsers.h \
 							 lem/io/server.c \
 							 lem/io/unix.c \
 							 lem/io/tcp.c \
-							 lem/io/udp.c
+							 lem/io/udp.c \
+							 lem/io/pty.c
 
 lem/io/core.so: $(io_core_file_list)
 lem/parsers/core.so: include/lem-parsers.h

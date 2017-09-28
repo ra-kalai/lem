@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
+#include <termios.h>
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -161,6 +162,7 @@ static const char *const ip_famnames[] = { "any", "ipv4", "ipv6", NULL };
 #include "tcp.c"
 #include "udp.c"
 #include "unix.c"
+#include "pty.c"
 
 /*
  * io.open()
@@ -395,6 +397,7 @@ io_fromfd_reap(struct lem_async *a)
 	}
 
 	lem_queue(T, 1);
+
 }
 
 static int
@@ -979,6 +982,16 @@ luaopen_lem_io_core(lua_State *L)
 
 	/* insert the unix table */
 	lua_setfield(L, -2, "unix");
+
+	/* create pty table */
+	lua_createtable(L, 0, 0);
+
+	/* insert the pty_openpair function */
+	lua_getfield(L, -2, "Stream"); /* upvalue 1 = Stream */
+	lua_pushcclosure(L, pty_openpair, 1);
+	lua_setfield(L, -2, "openpair");
+
+	lua_setfield(L, -2, "pty");
 
 	/* set set_collect_interval function */
 	lua_pushcfunction(L, io_set_collect_interval);
