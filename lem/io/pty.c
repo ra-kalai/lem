@@ -91,7 +91,7 @@ pty_openpair_reap(struct lem_async *a)
 	lem_queue(T, 2);
 }
 
-	static int
+static int
 pty_openpair(lua_State *T)
 {
 	struct pty_create_pair *u;

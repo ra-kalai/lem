@@ -556,6 +556,172 @@ error:
 }
 
 /*
+ * io.posix_spawn()
+ */
+
+static int
+io_posix_spawnp(lua_State *T)
+{
+	pid_t pid;
+	char **process_environ = __lem_main_environ;
+	int fd[2];
+	int err;
+	char **argv = NULL;
+	int argc = lua_gettop(T);
+	luaL_checktype(T, 1, LUA_TTABLE);
+	int cmd_len = lua_rawlen(T, 1);
+
+	lua_createtable(T, 0, 0);
+	int ret_table_index = lua_gettop(T);
+
+	lua_createtable(T, 0, 0);
+	int	stream_index = lua_gettop(T);
+
+	argv = lem_xmalloc(sizeof(*argv) * (cmd_len + 1));
+	int i;
+	for(i=0;i<cmd_len;i++) {
+		lua_rawgeti(T, 1, i+1);
+		argv[i] = (char*)lua_tostring(T, -1);
+	}
+	argv[cmd_len] = NULL;
+
+	posix_spawn_file_actions_t fa;
+	posix_spawn_file_actions_init(&fa);
+
+
+	if (argc>1)  {
+		luaL_checktype(T, 2, LUA_TTABLE);
+		lua_pushnil(T);
+
+
+		while (lua_next(T, 2) != 0) {
+			fd[0] = -1;
+			fd[1] = -1;
+			int stream_detail_top = lua_gettop(T);
+			lua_getfield(T, stream_detail_top, "kind");
+			const char *kind = lua_tostring(T, -1);
+			if (strcmp(kind, "socket") == 0) {
+				if (socketpair(AF_UNIX, SOCK_STREAM, 0, fd)) {
+					err = errno;
+					goto error;
+				}
+			} else if (strcmp(kind, "pipe") == 0) {
+				if (pipe(fd))  {
+					err = errno;
+					goto error;
+				}
+
+				if (lua_getfield(T, stream_detail_top, "mode") != LUA_TNIL) {
+					const char *pipe_mode = lua_tostring(T, -1);
+					if (strcmp(pipe_mode, "w") == 0) {
+						int tmp;
+						tmp = fd[0];
+						fd[0] = fd[1];
+						fd[1] = tmp;
+					}
+				}
+				lua_pop(T, 1);
+			}
+
+			lua_pop(T, 1);
+
+			lua_getfield(T, stream_detail_top, "fds");
+			int fds_table_top = lua_gettop(T);
+
+			lua_pushnil(T);  /* first key */
+			while (lua_next(T, fds_table_top) != 0) {
+				posix_spawn_file_actions_adddup2(&fa, fd[1], lua_tointeger(T, -1));
+				lua_pop(T, 1);
+			}
+			lua_pop(T, 1);
+
+			posix_spawn_file_actions_addclose(&fa, fd[1]);
+
+			lua_getfield(T, stream_detail_top, "name");
+
+			lua_createtable(T, 0, 0);
+
+			lua_pushinteger(T, fd[1]);
+			lua_rawseti(T, -2, 1);
+
+			stream_new(T, fd[0], lua_upvalueindex(1));
+			lua_rawseti(T, -2, 2);
+
+			lua_settable(T, stream_index);
+
+			lua_pop(T, 1);
+		}
+	}
+
+	if (argc>2) {
+		process_environ = NULL;
+		lua_pushnil(T);
+		i = 0;
+		while (lua_next(T, 3) != 0) {
+			i += 1;
+			lua_pop(T, 1);
+		}
+
+		process_environ = lem_xmalloc(sizeof(*process_environ) * (i+1));
+		process_environ[i] = NULL;
+
+		i = 0;
+
+		lua_pushnil(T);
+		while (lua_next(T, 3) != 0) {
+			const char *v = lua_tostring(T, -1);
+			const char *k = lua_tostring(T, -2);
+			int len = strlen(k) + strlen(v) + 2;
+
+			process_environ[i] = lem_xmalloc(len);
+			sprintf(process_environ[i], "%s=%s", k, v);
+			i += 1;
+
+			lua_pop(T, 1);
+		}
+	}
+
+	err = posix_spawnp(&pid, argv[0], &fa, NULL, argv, process_environ);
+
+	error:
+	if (process_environ != __lem_main_environ) {
+		int i;
+		for (i=0;process_environ[i] != NULL;i++) {
+			free(process_environ[i]);
+		}
+		free(process_environ);
+	}
+
+	free(argv);
+	lua_createtable(T, 0, 0);
+	int new_stream_index = lua_gettop(T);
+
+	lua_pushnil(T);
+	while (lua_next(T, stream_index) != 0) {
+		lua_rawgeti(T, -1, 1);
+		close(lua_tointeger(T, -1));
+		lua_pop(T, 1);
+
+		lua_pushvalue(T, -2);
+		lua_rawgeti(T, -2, 2);
+		lua_settable(T, new_stream_index);
+
+		lua_pop(T, 1);
+	}
+
+	lua_setfield(T, ret_table_index, "stream");
+
+	posix_spawn_file_actions_destroy(&fa);
+
+	if (err)
+		return io_strerror(T, err);
+
+	lua_pushvalue(T, ret_table_index);
+	return 1;
+}
+
+
+/*
  * io.streamfile()
  */
 struct streamfile {
@@ -918,6 +1084,10 @@ luaopen_lem_io_core(lua_State *L)
 	lua_getfield(L, -1, "Stream"); /* upvalue 1 = Stream */
 	lua_pushcclosure(L, io_popen, 1);
 	lua_setfield(L, -2, "popen");
+	/* insert posix_spawn function */
+	lua_getfield(L, -1, "Stream"); /* upvalue 1 = Stream */
+	lua_pushcclosure(L, io_posix_spawnp, 1);
+	lua_setfield(L, -2, "posix_spawnp");
 	/* insert streamfile function */
 	lua_getfield(L, -1, "Stream"); /* upvalue 1 = Stream */
 	lua_pushcclosure(L, io_streamfile, 1);
