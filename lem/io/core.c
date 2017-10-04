@@ -605,6 +605,25 @@ io_posix_spawnp(lua_State *T)
 					err = errno;
 					goto error;
 				}
+			} else if (strcmp(kind, "pty") == 0) {
+				int rc = 0;
+				fd[0] = posix_openpt(O_RDWR);
+				if (fd[0] < 0) {
+					err = errno;
+					goto error;
+				}
+				rc = grantpt(fd[0]);
+				rc = unlockpt(fd[0]);
+				fd[1] = open(ptsname(fd[0]), O_RDWR);
+				if (fd[1] < 0) {
+					close(fd[0]);
+					err = errno;
+					goto error;
+				}
+				struct termios term_settings;
+				rc = tcgetattr(fd[1], &term_settings);
+				cfmakeraw(&term_settings);
+				tcsetattr(fd[1], TCSANOW, &term_settings);
 			} else if (strcmp(kind, "pipe") == 0) {
 				if (pipe(fd))  {
 					err = errno;
@@ -622,6 +641,11 @@ io_posix_spawnp(lua_State *T)
 				}
 				lua_pop(T, 1);
 			}
+
+			fcntl(fd[0], F_SETFL, O_NONBLOCK);
+			fcntl(fd[1], F_SETFL, O_NONBLOCK);
+			fcntl(fd[0], F_SETFL, FD_CLOEXEC);
+			fcntl(fd[1], F_SETFL, FD_CLOEXEC);
 
 			lua_pop(T, 1);
 

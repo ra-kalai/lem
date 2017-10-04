@@ -12,7 +12,7 @@ pty_openpair_work(struct lem_async *a)
 	struct pty_create_pair *u = (struct pty_create_pair *)a;
 	int rc;
 
-	u->master_fd = posix_openpt(O_RDWR);
+	u->master_fd = posix_openpt(O_RDWR|O_NOCTTY);
 	if (u->master_fd < 0) {
 		u->master_fd = -1;
 		u->slave_fd = errno;
@@ -44,7 +44,6 @@ pty_openpair_work(struct lem_async *a)
 	}
 
 	struct termios term_settings;
-
 	rc = tcgetattr(u->slave_fd, &term_settings);
 
 	cfmakeraw(&term_settings);
