@@ -25,6 +25,7 @@
 #include <termios.h>
 
 #include <fcntl.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -555,14 +556,16 @@ error:
 	return io_strerror(T, err);
 }
 
+#include "lem_spawnx.c"
+
 /*
- * io.posix_spawn()
+ * io.spawnp()
  */
 
 static int
-io_posix_spawnp(lua_State *T)
+io_spawnp(lua_State *T)
 {
-	pid_t pid;
+	pid_t pid = 0;
 	char **process_environ = __lem_main_environ;
 	int fd[2];
 	int err;
@@ -585,8 +588,8 @@ io_posix_spawnp(lua_State *T)
 	}
 	argv[cmd_len] = NULL;
 
-	posix_spawn_file_actions_t fa;
-	posix_spawn_file_actions_init(&fa);
+	lem_spawn_file_actions_t fa;
+	lem_spawn_file_actions_init(&fa);
 
 
 	if (argc>1)  {
@@ -606,14 +609,13 @@ io_posix_spawnp(lua_State *T)
 					goto error;
 				}
 			} else if (strcmp(kind, "pty") == 0) {
-				int rc = 0;
-				fd[0] = posix_openpt(O_RDWR);
+				fd[0] = posix_openpt(O_RDWR|O_NOCTTY);
 				if (fd[0] < 0) {
 					err = errno;
 					goto error;
 				}
-				rc = grantpt(fd[0]);
-				rc = unlockpt(fd[0]);
+				grantpt(fd[0]);
+				unlockpt(fd[0]);
 				fd[1] = open(ptsname(fd[0]), O_RDWR);
 				if (fd[1] < 0) {
 					close(fd[0]);
@@ -621,7 +623,7 @@ io_posix_spawnp(lua_State *T)
 					goto error;
 				}
 				struct termios term_settings;
-				rc = tcgetattr(fd[1], &term_settings);
+				tcgetattr(fd[1], &term_settings);
 				cfmakeraw(&term_settings);
 				tcsetattr(fd[1], TCSANOW, &term_settings);
 			} else if (strcmp(kind, "pipe") == 0) {
@@ -652,14 +654,15 @@ io_posix_spawnp(lua_State *T)
 			lua_getfield(T, stream_detail_top, "fds");
 			int fds_table_top = lua_gettop(T);
 
-			lua_pushnil(T);  /* first key */
+			lua_pushnil(T);  /* iterate over fd list */
 			while (lua_next(T, fds_table_top) != 0) {
-				posix_spawn_file_actions_adddup2(&fa, fd[1], lua_tointeger(T, -1));
+				lem_spawn_file_actions_adddup2(&fa, fd[1], lua_tointeger(T, -1));
 				lua_pop(T, 1);
 			}
 			lua_pop(T, 1);
 
-			posix_spawn_file_actions_addclose(&fa, fd[1]);
+			lem_spawn_file_actions_addclose(&fa, fd[1]);
+			lem_spawn_file_actions_addclose(&fa, fd[0]);
 
 			lua_getfield(T, stream_detail_top, "name");
 
@@ -705,7 +708,42 @@ io_posix_spawnp(lua_State *T)
 		}
 	}
 
-	err = posix_spawnp(&pid, argv[0], &fa, NULL, argv, process_environ);
+	lem_spawnattr_t spawn_attr;
+	lem_spawnattr_t *spawn_attr_p = NULL;
+
+	if (argc>3) {
+		int extra_spawn_flag = 0;
+		lem_spawnattr_init(&spawn_attr);
+		spawn_attr_p = &spawn_attr;
+
+		lua_pushnil(T);
+		while (lua_next(T, 4) != 0) {
+			int v = lua_tointeger(T, -1);
+			const char *k = lua_tostring(T, -2);
+
+			if (strcmp("LEM_SPAWN_SETPGROUP", k) == 0) {
+				if (v) extra_spawn_flag |= LEM_SPAWN_SETPGROUP;
+				lem_spawnattr_setpgroup(spawn_attr_p, v);
+			} else if (strcmp("LEM_SPAWN_SETSID", k) == 0) {
+				if (v) extra_spawn_flag |= LEM_SPAWN_SETSID;
+			} else if (strcmp("LEM_SPAWN_SCTTY", k) == 0) {
+				if (v) extra_spawn_flag |= LEM_SPAWN_SCTTY;
+			}
+
+			lua_pop(T, 1);
+		}
+		lem_spawnattr_setflags(&spawn_attr, extra_spawn_flag);
+	}
+
+	err = lem_spawnp(&pid, argv[0], &fa, spawn_attr_p, argv, process_environ);
+
+	if (spawn_attr_p) {
+		lem_spawnattr_destroy(spawn_attr_p);
+	}
+	if (err == 0) {
+		lua_pushinteger(T, pid);
+		lua_setfield(T, ret_table_index, "pid");
+	}
 
 	error:
 	if (process_environ != __lem_main_environ) {
@@ -733,9 +771,9 @@ io_posix_spawnp(lua_State *T)
 		lua_pop(T, 1);
 	}
 
-	lua_setfield(T, ret_table_index, "stream");
+	lem_spawn_file_actions_destroy(&fa);
 
-	posix_spawn_file_actions_destroy(&fa);
+	lua_setfield(T, ret_table_index, "stream");
 
 	if (err)
 		return io_strerror(T, err);
@@ -1110,8 +1148,8 @@ luaopen_lem_io_core(lua_State *L)
 	lua_setfield(L, -2, "popen");
 	/* insert posix_spawn function */
 	lua_getfield(L, -1, "Stream"); /* upvalue 1 = Stream */
-	lua_pushcclosure(L, io_posix_spawnp, 1);
-	lua_setfield(L, -2, "posix_spawnp");
+	lua_pushcclosure(L, io_spawnp, 1);
+	lua_setfield(L, -2, "spawnp");
 	/* insert streamfile function */
 	lua_getfield(L, -1, "Stream"); /* upvalue 1 = Stream */
 	lua_pushcclosure(L, io_streamfile, 1);
