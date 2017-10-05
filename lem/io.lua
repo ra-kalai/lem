@@ -161,6 +161,38 @@ do
 			return listen4(host, port)
 		end
 	end
+
+	local table_unpack = table.unpack
+	if table_unpack == nil then
+		table_unpack = unpack
+	end
+
+	function io.popen(prog, mode)
+		local attr = {
+			w={{fds={0},    kind='pipe', mode="w", name='stdin'}},
+			r={{fds={1},    kind='pipe', mode="r", name='stdout'}},
+			rw={{fds={0,1}, kind='socket'        , name='stdstream'}},
+			["3s"]={{fds={0}, kind='pipe', mode="w", name="stdin"},
+						{fds={1},   kind='pipe', mode="r", name="stdout"},
+						{fds={2},   kind='pipe', mode="r", name="stderr"}}
+		}
+
+		mode = attr[mode]
+
+		local ret, err = io.spawnp(
+			{ "/bin/sh", "-c", prog },
+			{ table_unpack(mode) }
+		)
+
+		if err == nil then
+			if #mode == 1 then
+				return ret.stream[mode[1].name]
+			else
+				return ret.stream
+			end
+		end
+		return ret, err
+	end
 end
 
 return io
