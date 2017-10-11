@@ -163,7 +163,7 @@ static const char *const ip_famnames[] = { "any", "ipv4", "ipv6", NULL };
 #include "tcp.c"
 #include "udp.c"
 #include "unix.c"
-#include "pty.c"
+#include "tty.c"
 
 /*
  * io.open()
@@ -1083,9 +1083,15 @@ luaopen_lem_io_core(lua_State *L)
 	/* insert the pty_openpair function */
 	lua_getfield(L, -2, "Stream"); /* upvalue 1 = Stream */
 	lua_pushcclosure(L, pty_openpair, 1);
-	lua_setfield(L, -2, "openpair");
+	lua_setfield(L, -2, "pty_openpair");
 
-	lua_setfield(L, -2, "pty");
+	lua_pushcfunction(L, tty_get_window_size);
+	lua_setfield(L, -2, "get_window_size");
+
+	lua_pushcfunction(L, tty_set_window_size);
+	lua_setfield(L, -2, "set_window_size");
+
+	lua_setfield(L, -2, "tty");
 
 	/* set set_collect_interval function */
 	lua_pushcfunction(L, io_set_collect_interval);

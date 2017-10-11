@@ -105,3 +105,58 @@ pty_openpair(lua_State *T)
 
 	return lua_yield(T, 1);
 }
+
+static int
+tty_get_window_size(lua_State *T)
+{
+	struct stream *s;
+	struct winsize ws;
+
+	luaL_checktype(T, 1, LUA_TUSERDATA);
+	s = lua_touserdata(T, 1);
+
+	if (ioctl(s->r.fd, TIOCGWINSZ, &ws) == -1) {
+		return io_strerror(T, errno);
+	}
+
+	lua_newtable(T);
+	lua_pushinteger(T, ws.ws_row);
+	lua_setfield(T, -2, "row");
+	lua_pushinteger(T, ws.ws_col);
+	lua_setfield(T, -2, "col");
+	lua_pushinteger(T, ws.ws_xpixel);
+	lua_setfield(T, -2, "xpixel");
+	lua_pushinteger(T, ws.ws_ypixel);
+	lua_setfield(T, -2, "ypixel");
+
+	return 1;
+}
+
+static int
+tty_set_window_size(lua_State *T)
+{
+	struct stream *s;
+	struct winsize ws;
+
+	luaL_checktype(T, 1, LUA_TUSERDATA);
+	s = lua_touserdata(T, 1);
+
+	luaL_checktype(T, 2, LUA_TTABLE);
+	lua_getfield(T, 2, "row");
+	lua_getfield(T, 2, "col");
+	lua_getfield(T, 2, "xpixel");
+	lua_getfield(T, 2, "ypixel");
+
+	ws.ws_row = lua_tointeger(T, 3);
+	ws.ws_col = lua_tointeger(T, 4);
+	ws.ws_xpixel = lua_tointeger(T, 5);
+	ws.ws_ypixel = lua_tointeger(T, 6);
+
+	if (ioctl(s->r.fd, TIOCSWINSZ, &ws) == -1) {
+		return io_strerror(T, errno);
+	}
+
+	lua_pushboolean(T, 1);
+
+	return 1;
+}

@@ -92,7 +92,7 @@ io_core_file_list = include/lem-parsers.h \
 							 lem/io/unix.c \
 							 lem/io/tcp.c \
 							 lem/io/udp.c \
-							 lem/io/pty.c \
+							 lem/io/tty.c \
 							 lem/io/lem_spawnx.c
 
 lem/io/core.so: $(io_core_file_list)

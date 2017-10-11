@@ -17,6 +17,12 @@ local t = io.spawnp({"/bin/sh", "-c", "read var1 ; echo $var1; env; sleep 1"}
                )
 
 
+io.tty.set_window_size(t.stream.stdstream, {row=80, col=80})
+
+for k, v in pairs(io.tty.get_window_size(t.stream.stdstream)) do
+	print(k,v)
+end
+
 t.stream.stdstream:write("ooo\n")
 while true do
 	local l, err = t.stream.stdstream:read("*l")
