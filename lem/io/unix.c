@@ -42,13 +42,6 @@ unix_connect_work(struct lem_async *a)
 		u->err = errno;
 		return;
 	}
-#ifndef SOCK_CLOEXEC
-	if (fcntl(sock, F_SETFD, FD_CLOEXEC) == -1) {
-		u->sock = -1;
-		u->err = errno;
-		goto error;
-	}
-#endif
 	addr.sun_family = AF_UNIX;
 	memcpy(addr.sun_path, u->path, u->len+1);
 
@@ -60,7 +53,7 @@ unix_connect_work(struct lem_async *a)
 	}
 
 	/* make the socket non-blocking */
-	if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
+	if (fcntl(sock, F_SETFL, O_NONBLOCK | FD_CLOEXEC) == -1) {
 		u->sock = -1;
 		u->err = errno;
 		goto error;
@@ -142,13 +135,13 @@ unix_socketpair_work(struct lem_async *a)
 	}
 
 	/* make sockets non-blocking */
-	if (fcntl(u->fd[0], F_SETFL, O_NONBLOCK) == -1) {
+	if (fcntl(u->fd[0], F_SETFL, O_NONBLOCK | FD_CLOEXEC) == -1) {
 		u->fd[0] = -1;
 		u->fd[1] = errno;
     return ;
 	}
 
-	if (fcntl(u->fd[1], F_SETFL, O_NONBLOCK) == -1) {
+	if (fcntl(u->fd[1], F_SETFL, O_NONBLOCK | FD_CLOEXEC) == -1) {
 		u->fd[0] = -1;
 		u->fd[1] = errno;
     return ;
@@ -240,7 +233,7 @@ unix_listen_work(struct lem_async *a)
 	}
 
 	/* make the socket non-blocking */
-	if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
+	if (fcntl(sock, F_SETFL, O_NONBLOCK | FD_CLOEXEC) == -1) {
 		u->sock = -1;
 		u->err = errno;
 		goto error;
@@ -335,7 +328,7 @@ unix_passfd_send_work(struct lem_async *a)
 	struct stream *s = pf->s;
 
 	/* make socket blocking */
-	if (fcntl(s->w.fd, F_SETFL, 0) == -1) {
+	if (fcntl(s->w.fd, F_SETFL, FD_CLOEXEC) == -1) {
 		pf->ret = errno;
 		return;
 	}
@@ -381,7 +374,7 @@ unix_passfd_send_work(struct lem_async *a)
 	}
 
 	/* make socket non-blocking again */
-	if (fcntl(s->w.fd, F_SETFL, O_NONBLOCK) == -1) {
+	if (fcntl(s->w.fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC) == -1) {
 		pf->ret = errno;
 		return;
 	}
@@ -458,7 +451,7 @@ unix_passfd_recv_work(struct lem_async *a)
 	}
 
 	/* make socket non-blocking again */
-	if (fcntl(s->r.fd, F_SETFL, O_NONBLOCK) == -1) {
+	if (fcntl(s->r.fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC) == -1) {
 		pf->ret = errno;
 		return;
 	}
