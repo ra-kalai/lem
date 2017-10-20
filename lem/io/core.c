@@ -510,9 +510,10 @@ io_spawnp(lua_State *T)
 				lua_pop(T, 1);
 			}
 
-			fcntl(fd[0], F_SETFL, O_NONBLOCK | FD_CLOEXEC);
-			fcntl(fd[1], F_SETFL, O_NONBLOCK | FD_CLOEXEC);
-
+			fcntl(fd[0], F_SETFL, O_NONBLOCK);
+			fcntl(fd[1], F_SETFL, O_NONBLOCK);
+			fcntl(fd[0], F_SETFL, FD_CLOEXEC);
+			fcntl(fd[1], F_SETFL, FD_CLOEXEC);
 
 			lua_pop(T, 1);
 

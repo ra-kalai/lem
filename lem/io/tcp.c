@@ -98,6 +98,13 @@ tcp_connect_work(struct lem_async *a)
 			g->err = err;
 			goto out;
 		}
+#ifndef SOCK_CLOEXEC
+		if (fcntl(sock, F_SETFD, FD_CLOEXEC) == -1) {
+			g->sock = -2;
+			g->err = errno;
+			goto error;
+		}
+#endif
 
 		if (bind_addr != NULL)
 		if (bind(sock, bind_addr->ai_addr, bind_addr->ai_addrlen)) {
@@ -113,7 +120,7 @@ tcp_connect_work(struct lem_async *a)
 		}
 
 		/* make the socket non-blocking */
-		if (fcntl(sock, F_SETFL, O_NONBLOCK | FD_CLOEXEC) == -1) {
+		if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
 			g->sock = -2;
 			g->err = errno;
 			goto error;
@@ -246,7 +253,13 @@ tcp_listen_work(struct lem_async *a)
 		g->err = errno;
 		goto out;
 	}
-
+#ifndef SOCK_CLOEXEC
+	if (fcntl(sock, F_SETFD, FD_CLOEXEC) == -1) {
+		g->sock = -2;
+		g->err = errno;
+		goto error;
+	}
+#endif
 	/* set SO_REUSEADDR option if possible */
 	ret = 1;
 	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &ret, sizeof(int));
@@ -270,7 +283,7 @@ tcp_listen_work(struct lem_async *a)
 	}
 
 	/* make the socket non-blocking */
-	if (fcntl(sock, F_SETFL, O_NONBLOCK | FD_CLOEXEC) == -1) {
+	if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
 		g->sock = -2;
 		g->err = errno;
 		goto error;
