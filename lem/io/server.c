@@ -237,6 +237,8 @@ server_autospawn_cb(EV_P_ struct ev_io *w, int revents)
 				case EAGAIN: case EINTR: case ECONNABORTED:
 				case ENETDOWN: case EPROTO: case ENOPROTOOPT:
 				case EHOSTDOWN:
+				case EMFILE:
+				case ENFILE:
 #ifdef ENONET
 				case ENONET:
 #endif
@@ -375,6 +377,9 @@ server_autospawn(lua_State *T)
 	}
 
 	w->data = T;
+	/* set it to a low prio to make other watcher run first,
+		 when not enough fd are available */
+	ev_set_priority(w, -1);
 	ev_io_start(LEM_ w);
 
 	lem_debug("yielding");
