@@ -373,12 +373,13 @@ parse_http_process(lua_State *T, struct lem_inputbuf *b)
 			break;
 
 		case XEND:
-			/* in case there is headers w should not be = 0 ? */
 			if (w) {
 				lua_pushlstring(T, b->buf, w);
-				lua_rawseti(T, -2, 2);
-				lua_rawseti(T, -2, header_line_off++);
+			} else {
+				lua_pushliteral(T, "");
 			}
+			lua_rawseti(T, -2, 2);
+			lua_rawseti(T, -2, header_line_off++);
 
 			lua_setfield(T, -2, "header_list");
 
