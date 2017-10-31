@@ -76,6 +76,10 @@ local function glob(path, mode, cpath, lvl)
 	local ret = {}
 	local name
 
+	if dir_iter == nil then
+		return ret
+	end
+
 	repeat
 		name = dir_iter(k)
 
