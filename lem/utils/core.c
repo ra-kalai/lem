@@ -224,27 +224,109 @@ utils_poolconfig(lua_State *T)
 static size_t
 fast_szstr(const char *in_str, size_t len, char *out_str)
 {
+#define simple_escape(out, x) \
+	do { \
+		if (x <= 9) { \
+			*out++ = '\\'; \
+			*out++ = '0' + x % 10; \
+		} else if (x <= 99) { \
+			*out++ = '\\'; \
+			*out++ = '0' + x / 10; \
+			*out++ = '0' + x % 10; \
+		} else { \
+			*out++ = '\\'; \
+			*out++ = '0' + x / 100; \
+			*out++ = '0' + x / 10 % 10; \
+			*out++ = '0' + x % 10; \
+		} \
+	} while(0)
+
+#define full_escape(out, x) \
+	do { \
+		if (x <= 9) { \
+			*out++ = '\\'; \
+			*out++ = '0'; \
+			*out++ = '0'; \
+			*out++ = '0' + x % 10; \
+		} else if (x <= 99) { \
+			*out++ = '\\'; \
+			*out++ = '0'; \
+			*out++ = '0' + x / 10; \
+			*out++ = '0' + x % 10; \
+		} else { \
+			*out++ = '\\'; \
+			*out++ = '0' + x / 100; \
+			*out++ = '0' + x / 10 % 10; \
+			*out++ = '0' + x % 10; \
+		} \
+	} while(0)
+
+#define out_byte(out, x, escape_fun) \
+	do { \
+		if (x == '\a') { \
+			*out++ = '\\'; \
+			*out++ = 'a'; \
+		} else if (x == '\b') { \
+			*out++ = '\\'; \
+			*out++ = 'b'; \
+		} else if (x == '\t') { \
+			*out++ = '\\'; \
+			*out++ = 't'; \
+		} else if (x == '\n') { \
+			*out++ = '\\'; \
+			*out++ = 'n'; \
+		} else if (x == '\v') { \
+			*out++ = '\\'; \
+			*out++ = 'v'; \
+		} else if (x == '\f') { \
+			*out++ = '\\'; \
+			*out++ = 'f'; \
+		} else if (x == '\r') { \
+			*out++ = '\\'; \
+			*out++ = 'r'; \
+		} else if (x == '\\') { \
+			*out++ = '\\'; \
+			*out++ = '\\'; \
+		} else if (x == '\'') { \
+			*out++ = '\\'; \
+			*out++ = '\''; \
+		} else if (x == '\"') { \
+			*out++ = '\\'; \
+			*out++ = '\"'; \
+		} else if (x >= ' ' && x <= '~') { \
+			*out++ = x; \
+		} else { \
+			escape_fun(out, x); \
+		} \
+	} while(0)
+
 	char *out = out_str;
+	uint8_t x, x2;
+
 	size_t i;
 	*out++ = '"';
-	for(i=0;i<len;i++) {
-		uint8_t x = ((uint8_t*)in_str)[i];
-		if (x <= 9) {
-			*out++ = '\\';
-			*out++ = '0' + x % 10;
-		} else if (x <= 99) {
-			*out++ = '\\';
-			*out++ = '0' + x / 10;
-			*out++ = '0' + x % 10;
-		} else {
-			*out++ = '\\';
-			*out++ = '0' + x / 100;
-			*out++ = '0' + x / 10 % 10;
-			*out++ = '0' + x % 10;
+	if (len>0) {
+		for(i=0;i<len-1;i++) {
+			x = ((uint8_t*)in_str)[i];
+			x2 = ((uint8_t*)in_str)[i+1];
+
+			if (x2 < '0' || x2 > '9') {
+				out_byte(out, x, simple_escape);
+			} else {
+				out_byte(out, x, full_escape);
+			}
 		}
+
+		x = ((uint8_t*)in_str)[len-1];
+		out_byte(out, x, simple_escape);
 	}
 
+
 	*out++ = '"';
+
+	#undef simple_escape
+	#undef full_escape
+	#undef out_byte
 
 	return out - out_str;
 }
