@@ -188,7 +188,7 @@ do
 			if #mode == 1 then
 				return ret.stream[mode[1].name]
 			else
-				return ret.stream
+				return ret.stream, ret.pid
 			end
 		end
 		return ret, err
