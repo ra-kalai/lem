@@ -20,13 +20,13 @@ local lem_utils  = require 'lem.utils.core'
 
 local spawn = lem_utils.spawn
 local yield = lem_utils.yield
-local suspend = lem_utils.suspend
 local resume = lem_utils.resume
 local thisthread = lem_utils.thisthread
 
 local g_waittid_map = {}
 
 local coroutine_resume = coroutine.resume
+local coro_yield = coroutine.yield
 
 local function spawn2(f, ...)
 	local tid
@@ -64,16 +64,17 @@ local function waittid(tid_list)
 	end
 
 	while i < tid_count do
-		local tid = suspend()
+		local tid = coro_yield()
 		i = i + 1
 	end
+
+	yield()
 
 	return tid_count
 end
 
 lem_utils.waittid = waittid
 
-local coro_yield = coroutine.yield
 local table_unpack
 
 if _VERSION == 'Lua 5.1' then
