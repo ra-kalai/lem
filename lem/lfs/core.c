@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
+#define _FILE_OFFSET_BITS 64
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
