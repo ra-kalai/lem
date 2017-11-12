@@ -92,7 +92,7 @@ local function glob(path, mode, cpath, lvl)
 			end
 
 			if name:match(path[lvl]) then
-				local attr = lfs.symlinkattributes(cpath .. name)
+				local attr = lfs.attributes(cpath .. name)
 				if attr.mode == 'file' then
 					if list_file and lvl == #path then
 						if ret_stats then
