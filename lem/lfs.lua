@@ -93,24 +93,26 @@ local function glob(path, mode, cpath, lvl)
 
 			if name:match(path[lvl]) then
 				local attr = lfs.attributes(cpath .. name)
-				if attr.mode == 'file' then
-					if list_file and lvl == #path then
-						if ret_stats then
-							ret[#ret + 1] = {cpath .. name, attr}
-						else
-							ret[#ret + 1] = cpath .. name
+				if attr then
+					if attr.mode == 'file' then
+						if list_file and lvl == #path then
+							if ret_stats then
+								ret[#ret + 1] = {cpath .. name, attr}
+							else
+								ret[#ret + 1] = cpath .. name
+							end
 						end
-					end
-				elseif attr.mode == 'directory' then
-					local subret = glob(path, mode, cpath .. name .. '/', lvl + 1)
-					for i=1, #subret do
-						ret[#ret+1] = subret[i]
-					end
-					if lvl == #path and list_dir then
-						if ret_stats then
-							ret[#ret + 1] = {cpath .. name, attr}
-						else
-							ret[#ret + 1] = cpath .. name
+					elseif attr.mode == 'directory' then
+						local subret = glob(path, mode, cpath .. name .. '/', lvl + 1)
+						for i=1, #subret do
+							ret[#ret+1] = subret[i]
+						end
+						if lvl == #path and list_dir then
+							if ret_stats then
+								ret[#ret + 1] = {cpath .. name, attr}
+							else
+								ret[#ret + 1] = cpath .. name
+							end
 						end
 					end
 				end
