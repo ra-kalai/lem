@@ -198,6 +198,7 @@ struct parse_http_state {
 	unsigned char state;
 	unsigned int header_line_off;
 };
+
 LEM_BUILD_ASSERT(sizeof(struct parse_http_state) < LEM_INPUTBUF_PSIZE);
 
 static void
@@ -205,7 +206,8 @@ parse_http_init(lua_State *T)
 {
 	/* create result table */
 	lua_settop(T, 2);
-	lua_createtable(T, 0, 5);
+	lua_createtable(T, 0, 5); /* hash table containing status, version... */
+	lua_newtable(T);          /* list containing headers */
 }
 
 static void
@@ -282,9 +284,8 @@ parse_http_process(lua_State *T, struct lem_inputbuf *b)
 
 		case SRE1:
 			lua_pushlstring(T, b->buf, w);
-			lua_setfield(T, -2, "version");
+			lua_setfield(T, -3, "version");
 			w = 0;
-			lua_newtable(T);
 			break;
 
 		case X___:
@@ -297,7 +298,7 @@ parse_http_process(lua_State *T, struct lem_inputbuf *b)
 		case XMUS:
 			state = SMUS;
 			lua_pushlstring(T, b->buf, w);
-			lua_setfield(T, -2, "method");
+			lua_setfield(T, -3, "method");
 			w = 0;
 			break;
 
@@ -317,18 +318,18 @@ parse_http_process(lua_State *T, struct lem_inputbuf *b)
 				} else {
 					lua_pushnil(T);
 				}
-				lua_setfield(T, -2, "path");
+				lua_setfield(T, -3, "path");
 			}
 
 			lua_pushlstring(T, b->buf, w);
-			lua_setfield(T, -2, "uri");
+			lua_setfield(T, -3, "uri");
 			w = 0;
 			break;
 
 		case XVNS:
 			state = CVNS;
 			lua_pushlstring(T, b->buf, w);
-			lua_setfield(T, -2, "version");
+			lua_setfield(T, -3, "version");
 			w = 0;
 			break;
 
@@ -345,16 +346,15 @@ parse_http_process(lua_State *T, struct lem_inputbuf *b)
 
 				lua_pushinteger(T, n);
 			}
-			lua_setfield(T, -2, "status");
+			lua_setfield(T, -3, "status");
 			w = 0;
 			break;
 
 		case XRE1:
 			state = SRE1;
 			lua_pushlstring(T, b->buf, w);
-			lua_setfield(T, -2, "text");
+			lua_setfield(T, -3, "text");
 			w = 0;
-			lua_newtable(T);
 			break;
 
 		case XCOL:
@@ -373,13 +373,18 @@ parse_http_process(lua_State *T, struct lem_inputbuf *b)
 			break;
 
 		case XEND:
-			if (w) {
-				lua_pushlstring(T, b->buf, w);
-			} else {
-				lua_pushliteral(T, "");
+			if (lua_gettop(T) == 5) {
+				/* a partial key/value header was pushed on the lua stack
+					( 4 + table ) => 5 */
+				if (w) {
+					/* w should be > 0 if there is a value */
+					lua_pushlstring(T, b->buf, w);
+				} else {
+					lua_pushliteral(T, "");
+				}
+				lua_rawseti(T, -2, 2);
+				lua_rawseti(T, -2, header_line_off++);
 			}
-			lua_rawseti(T, -2, 2);
-			lua_rawseti(T, -2, header_line_off++);
 
 			lua_setfield(T, -2, "header_list");
 
