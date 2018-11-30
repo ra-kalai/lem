@@ -854,6 +854,45 @@ io_craftaddr(lua_State *T)
 	return 1;
 }
 
+
+struct fdtopoll {
+	struct ev_io p;
+	lua_State *S;
+};
+
+static void
+fdpoll_ready(EV_P_ struct ev_io *w, int revents)
+{
+	(void)revents;
+	struct fdtopoll *fdpoll = (struct fdtopoll*)w;
+	ev_io_stop(EV_A_ w);
+	lem_queue(fdpoll->S, 0);
+	free(fdpoll);
+}
+
+static const int poll_kind_number[] = { EV_READ, EV_WRITE, EV_READ|EV_WRITE };
+static const char *const poll_kind_name[] = { "r", "w", "rw", NULL };
+
+static int
+io_fdpoll(lua_State *T)
+{
+	int fd = lua_tointeger(T, 1);
+	int pollkind_idx = luaL_checkoption(T, 2, "r", poll_kind_name);
+	int pollkind = poll_kind_number[pollkind_idx];
+
+	struct fdtopoll *fdpoll = lem_xmalloc(sizeof *fdpoll);
+
+	fdpoll->S = T;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+	ev_io_init(&fdpoll->p, NULL, fd, pollkind);
+#pragma GCC diagnostic pop
+	fdpoll->p.cb = fdpoll_ready;
+	ev_io_start(LEM_ &fdpoll->p);
+
+	return lua_yield(T, 0);
+}
+
 int
 luaopen_lem_io_core(lua_State *L)
 {
@@ -1100,6 +1139,9 @@ luaopen_lem_io_core(lua_State *L)
 
 	lua_pushcfunction(L, io_craftaddr);
 	lua_setfield(L, -2, "craftaddr");
+
+	lua_pushcfunction(L, io_fdpoll);
+	lua_setfield(L, -2, "fdpoll");
 
 	return 1;
 }
