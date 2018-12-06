@@ -403,9 +403,16 @@ int
 main(int argc, char *argv[])
 {
 
-  __lem_main_environ = environ;
-  __lem_main_argc = argc;
-  __lem_main_argv = argv;
+	__lem_main_environ = environ;
+	__lem_main_argc = argc;
+	__lem_main_argv = argv;
+
+	double max_cleanup_delay = 0;
+
+	char *max_cleanup_delay_env = getenv("MAX_CLEANUP_DELAY");
+	if (max_cleanup_delay_env) {
+		max_cleanup_delay = atof(max_cleanup_delay_env);
+	}
 
 	lem_loop = ev_default_loop(LEM_LOOPFLAGS);
 	if (lem_loop == NULL) {
@@ -463,6 +470,10 @@ main(int argc, char *argv[])
 	/* if there is an error message left on L print it */
 	if (lua_type(L, -1) == LUA_TSTRING)
 		lem_log_error("lem: %s", lua_tostring(L, -1));
+
+	lua_gc(L, LUA_GCCOLLECT, 0);
+	lem_async_config(0, 0, pool_max);
+	lem_wait_pool_to_be_empty_upto_delay(max_cleanup_delay);
 
 	/* shutdown Lua */
 	lua_close(L);

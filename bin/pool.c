@@ -263,3 +263,25 @@ lem_async_config(int delay, int min, int max)
 	for (; spawn > 0; spawn--)
 		pool_spawnthread();
 }
+
+inline static void
+lem_wait_pool_to_be_empty_upto_delay(double delay) {
+	ev_now_update(LEM);
+	double start = ev_now(LEM);
+	double current;
+
+	while (1) {
+		ev_now_update(LEM);
+		current = ev_now(LEM) - start;
+		pthread_mutex_lock(&pool_mutex);
+		if (pool_threads == 0) {
+			break;
+		}
+		if (current > delay) {
+			lem_debug("harakiri, pool cleanup took an unacceptable time.. ");
+			exit(exit_status);
+		}
+		pthread_mutex_unlock(&pool_mutex);
+		usleep(1e3);
+	}
+}
