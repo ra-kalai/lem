@@ -20,6 +20,7 @@ static unsigned int pool_jobs;
 static unsigned int pool_min;
 static unsigned int pool_max;
 static unsigned int pool_threads;
+static unsigned int pool_is_halting;
 static time_t pool_delay;
 static pthread_mutex_t pool_mutex;
 #if _POSIX_SPIN_LOCKS >= 200112L
@@ -64,14 +65,24 @@ pool_threadfunc(void *arg)
 
 		pthread_mutex_lock(&pool_mutex);
 		while ((a = pool_head) == NULL) {
+retry_lock:
 			if (pool_threads <= pool_min) {
 				pthread_cond_wait(&pool_cond, &pool_mutex);
 				continue;
 			}
 
-			if (pthread_cond_timedwait(&pool_cond, &pool_mutex, &ts)
-					&& pool_threads > pool_min)
+			if (pthread_cond_timedwait(&pool_cond, &pool_mutex, &ts)) {
+				/* timeout */
+				printf("%d %d -> %d\n", pool_threads, pool_min, pool_threads > pool_min);
+				if (pool_threads > pool_min)
+					goto out;
+				else
+					goto retry_lock;
+			}
+
+			if (pool_is_halting) {
 				goto out;
+			}
 		}
 		pool_head = a->next;
 		pthread_mutex_unlock(&pool_mutex);
@@ -139,6 +150,7 @@ pool_init(void)
 	pool_min = 0;
 	pool_threads = 0;
 	*/
+	pool_min = 1;
 	pool_max = 8 /*INT_MAX*/;
 	pool_delay = 3;
 	/*
@@ -235,12 +247,15 @@ lem_async_run(struct lem_async *a)
 		pool_tail->next = a;
 		pool_tail = a;
 	}
-	if (pool_jobs > pool_threads && pool_threads < pool_max) {
+	if (pool_is_halting == 0 &&
+			pool_jobs > pool_threads && pool_threads < pool_max) {
 		pool_threads++;
 		spawn = 1;
 	}
 	pthread_mutex_unlock(&pool_mutex);
 	pthread_cond_signal(&pool_cond);
+
+
 	if (spawn)
 		pool_spawnthread();
 }
@@ -264,24 +279,47 @@ lem_async_config(int delay, int min, int max)
 		pool_spawnthread();
 }
 
+static void
+lem_exit_timeout(EV_P_ ev_timer *w, int revents) {
+}
+
+static void
+lem_pool_halt(EV_P_ struct ev_idle *w, int revents) {
+		pthread_mutex_lock(&pool_mutex);
+		if (pool_threads == 0) {
+			ev_idle_stop(EV_A_ w);
+			ev_unloop(LEM_ EVBREAK_ALL);
+		} else {
+			pthread_cond_signal(&pool_cond);
+		}
+		pthread_mutex_unlock(&pool_mutex);
+}
+
+
 inline static void
 lem_wait_pool_to_be_empty_upto_delay(double delay) {
 	ev_now_update(LEM);
 	double start = ev_now(LEM);
 	double current;
 
-	while (1) {
-		ev_now_update(LEM);
-		current = ev_now(LEM) - start;
-		pthread_mutex_lock(&pool_mutex);
-		if (pool_threads == 0) {
-			break;
-		}
-		if (current > delay) {
-			lem_debug("harakiri, pool cleanup took an unacceptable time.. ");
-			exit(exit_status);
-		}
-		pthread_mutex_unlock(&pool_mutex);
-		usleep(1e3);
+	lem_async_config(0, 0, pool_max);
+	pool_is_halting = 1;
+
+	if (delay == 0) {
+		exit(exit_status);
 	}
+
+	ev_timer timer_exit_timeout;
+	ev_timer_init (&timer_exit_timeout, lem_exit_timeout, delay, 0.);
+	ev_timer_start(LEM_ &timer_exit_timeout);
+
+	ev_idle idle_watcher;
+	ev_idle_init(&idle_watcher, lem_pool_halt);
+	ev_idle_start(LEM_ &idle_watcher);
+
+
+	ev_loop(LEM_ 0);
+
+	ev_timer_stop(LEM_ &timer_exit_timeout);
+	pool_cb(LEM_ &pool_watch, 0);
 }

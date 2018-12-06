@@ -159,7 +159,7 @@ void
 lem_exit(int status)
 {
 	exit_status = status;
-	ev_unloop(LEM_ EVUNLOOP_ALL);
+	ev_unloop(LEM_ EVBREAK_ALL);
 }
 
 void
@@ -472,7 +472,6 @@ main(int argc, char *argv[])
 		lem_log_error("lem: %s", lua_tostring(L, -1));
 
 	lua_gc(L, LUA_GCCOLLECT, 0);
-	lem_async_config(0, 0, pool_max);
 	lem_wait_pool_to_be_empty_upto_delay(max_cleanup_delay);
 
 	/* shutdown Lua */
