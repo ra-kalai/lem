@@ -73,7 +73,6 @@ retry_lock:
 
 			if (pthread_cond_timedwait(&pool_cond, &pool_mutex, &ts)) {
 				/* timeout */
-				printf("%d %d -> %d\n", pool_threads, pool_min, pool_threads > pool_min);
 				if (pool_threads > pool_min)
 					goto out;
 				else
