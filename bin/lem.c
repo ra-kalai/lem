@@ -297,6 +297,7 @@ runqueue_pop(EV_P_ struct ev_idle *w, int revents)
 
 			case LUA_ERRMEM: /* out of memory */
 				oom();
+				break;
 
 			default: /* this shouldn't happen */
 				lem_debug("lua_resume: unknown error");
@@ -359,6 +360,7 @@ queue_file(int argc, char *argv[], int fidx)
 
 	case LUA_ERRMEM:
 		oom();
+		break;
 
 	default:
 		lem_log_error("lem: %s", lua_tostring(T, 1));
@@ -380,6 +382,7 @@ queue_file(int argc, char *argv[], int fidx)
 
 	case LUA_ERRMEM:
 		oom();
+		break;
 
 	default:
 		lem_log_error("lem: %s", lua_tostring(T, 1));

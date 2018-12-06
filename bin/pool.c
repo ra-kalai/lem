@@ -71,6 +71,10 @@ retry_lock:
 				continue;
 			}
 
+			if (pool_is_halting) {
+				goto out;
+			}
+
 			if (pthread_cond_timedwait(&pool_cond, &pool_mutex, &ts)) {
 				/* timeout */
 				if (pool_threads > pool_min)
@@ -79,9 +83,6 @@ retry_lock:
 					goto retry_lock;
 			}
 
-			if (pool_is_halting) {
-				goto out;
-			}
 		}
 		pool_head = a->next;
 		pthread_mutex_unlock(&pool_mutex);
@@ -280,10 +281,16 @@ lem_async_config(int delay, int min, int max)
 
 static void
 lem_exit_timeout(EV_P_ ev_timer *w, int revents) {
+	(void)EV_A;
+	(void)w;
+	(void)revents;
+	exit(exit_status);
 }
 
 static void
 lem_pool_halt(EV_P_ struct ev_idle *w, int revents) {
+	(void)w;
+	(void)revents;
 		pthread_mutex_lock(&pool_mutex);
 		if (pool_threads == 0) {
 			ev_idle_stop(EV_A_ w);
@@ -298,8 +305,6 @@ lem_pool_halt(EV_P_ struct ev_idle *w, int revents) {
 inline static void
 lem_wait_pool_to_be_empty_upto_delay(double delay) {
 	ev_now_update(LEM);
-	double start = ev_now(LEM);
-	double current;
 
 	lem_async_config(0, 0, pool_max);
 	pool_is_halting = 1;
