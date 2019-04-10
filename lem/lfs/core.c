@@ -198,6 +198,68 @@ lfs_remove(lua_State *T)
 	return lua_yield(T, 1);
 }
 
+struct lfs_readlinkop {
+	struct lem_async a;
+	lua_State *T;
+	char *path;
+	int ret;
+};
+
+static void
+lfs_readlink_work(struct lem_async *a)
+{
+	struct lfs_readlinkop *ro = (struct lfs_readlinkop *)a;
+	int max_path_len = 4096;
+	char *dpath = lem_xmalloc(max_path_len);
+
+	if ((ro->ret = readlink(ro->path, dpath, max_path_len)) < 0) {
+		ro->ret = errno;
+		free(ro->path);
+		free(dpath);
+		return ;
+	}
+
+	dpath[ro->ret] = 0;
+	ro->ret = 0;
+	free(ro->path);
+	ro->path = dpath;
+}
+
+static void
+lfs_readlink_reap(struct lem_async *a)
+{
+	struct lfs_readlinkop *ro = (struct lfs_readlinkop *)a;
+	lua_State *T = ro->T;
+	int ret = ro->ret;
+	char *dpath = ro->path;
+
+	free(ro);
+
+	if (ret) {
+		lem_queue(T, lfs_strerror(T, ret));
+		return;
+	}
+
+	lua_pushstring(T, dpath);
+	free(dpath);
+	lem_queue(T, 1);
+}
+
+static int
+lfs_readlink(lua_State *T)
+{
+	const char *path = luaL_checkstring(T, 1);
+	struct lfs_readlinkop *ro;
+
+	ro = lem_xmalloc(sizeof(*ro));
+	ro->T = T;
+	ro->path = strdup(path);
+	lem_async_do(&ro->a, lfs_readlink_work, lfs_readlink_reap);
+
+	lua_settop(T, 1);
+	return lua_yield(T, 1);
+}
+
 /*
  * lfs.link() and lfs.rename()
  */
@@ -805,6 +867,9 @@ luaopen_lem_lfs_core(lua_State *L)
 	/* insert link function */
 	lua_pushcfunction(L, lfs_link);
 	lua_setfield(L, -2, "link");
+	/* insert readlink function */
+	lua_pushcfunction(L, lfs_readlink);
+	lua_setfield(L, -2, "readlink");
 	/* insert rename function */
 	lua_pushcfunction(L, lfs_rename);
 	lua_setfield(L, -2, "rename");
