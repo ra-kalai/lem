@@ -57,6 +57,9 @@ Request.__index = Request
 M.Request = Request
 
 function Request:body(maxsize)
+	if self.bodyContent then
+		return self.bodyContent
+	end
 	local len, body = self.headers['content-length'], ''
 	if not len then return body end
 
@@ -76,11 +79,20 @@ function Request:body(maxsize)
 	body, err = self.client:read(len)
 	if not body then return nil, err end
 
+	self.bodyContent = body
+
 	return body
 end
 
 local urldecode = http.urldecode
 M.urldecode = urldecode
+M.parseform = function (str)
+	local t = {}
+	for k, v in str:gmatch('([^&]+)=([^&]*)') do
+		t[urldecode(k)] = urldecode(v)
+	end
+	return t
+end
 
 local newresponse = response.new
 

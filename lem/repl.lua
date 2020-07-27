@@ -16,10 +16,8 @@
 -- License along with LEM.  If not, see <http://www.gnu.org/licenses/>.
 --
 
-local loadstring = loadstring
-if _VERSION ~= 'Lua 5.1' then
-	loadstring = load
-end
+local compatshim = require 'lem.compatshim'
+local loadstring = compatshim.load
 
 local format = string.format
 local concat = table.concat

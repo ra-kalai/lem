@@ -5,13 +5,15 @@
 #define lvm_c
 #include <luaconf.h>
 
+
+
 /* do not export internal symbols */
-#undef LUAI_FUNC
-#undef LUAI_DDEC
-#undef LUAI_DDEF
-#define LUAI_FUNC	static
-#define LUAI_DDEC	static
-#define LUAI_DDEF	static
+//#undef LUAI_FUNC
+//#undef LUAI_DDEC
+//#undef LUAI_DDEF
+//#define LUAI_FUNC	static
+//#define LUAI_DDEC	static
+//#define LUAI_DDEF	static
 
 /* core */
 #include "../lua/lapi.c"
@@ -40,7 +42,7 @@
 
 /* standard library */
 #include "../lua/lbaselib.c"
-#include "../lua/lbitlib.c"
+//#include "../lua/lbitlib.c"
 #include "../lua/lcorolib.c"
 #include "../lua/ldblib.c"
 #include "../lua/liolib.c"

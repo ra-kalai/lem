@@ -109,6 +109,7 @@ lem_spawn_file_actions_adddup2(lem_spawn_file_actions_t *fa, int srcfd, int fd)
   return 0;
 }
 
+/*
 static int
 lem_spawn_file_actions_addopen(lem_spawn_file_actions_t *restrict fa, int fd, const char *restrict path, int flags, mode_t mode)
 {
@@ -124,6 +125,7 @@ lem_spawn_file_actions_addopen(lem_spawn_file_actions_t *restrict fa, int fd, co
   fa->__actions = op;
   return 0;
 }
+*/
 
 static int
 lem_spawnattr_init(lem_spawnattr_t *attr)

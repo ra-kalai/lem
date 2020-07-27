@@ -23,17 +23,12 @@ static unsigned int pool_threads;
 static unsigned int pool_is_halting;
 static time_t pool_delay;
 static pthread_mutex_t pool_mutex;
-#if _POSIX_SPIN_LOCKS >= 200112L
-static pthread_spinlock_t pool_dlock;
-#define pool_done_init()   pthread_spin_init(&pool_dlock, PTHREAD_PROCESS_PRIVATE)
-#define pool_done_lock()   pthread_spin_lock(&pool_dlock)
-#define pool_done_unlock() pthread_spin_unlock(&pool_dlock)
-#else
+
 static pthread_mutex_t pool_dlock;
 #define pool_done_init()   pthread_mutex_init(&pool_dlock, NULL)
 #define pool_done_lock()   pthread_mutex_lock(&pool_dlock)
 #define pool_done_unlock() pthread_mutex_unlock(&pool_dlock)
-#endif
+
 static pthread_cond_t pool_cond;
 static pthread_condattr_t pool_condattr;
 static struct lem_async *pool_head;
@@ -292,6 +287,7 @@ lem_pool_halt(EV_P_ struct ev_idle *w, int revents) {
 	(void)w;
 	(void)revents;
 		pthread_mutex_lock(&pool_mutex);
+
 		if (pool_threads == 0) {
 			ev_idle_stop(EV_A_ w);
 			ev_unloop(LEM_ EVBREAK_ALL);
@@ -314,11 +310,17 @@ lem_wait_pool_to_be_empty_upto_delay(double delay) {
 	}
 
 	ev_timer timer_exit_timeout;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
 	ev_timer_init (&timer_exit_timeout, lem_exit_timeout, delay, 0.);
+#pragma GCC diagnostic pop
 	ev_timer_start(LEM_ &timer_exit_timeout);
 
 	ev_idle idle_watcher;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
 	ev_idle_init(&idle_watcher, lem_pool_halt);
+#pragma GCC diagnostic pop
 	ev_idle_start(LEM_ &idle_watcher);
 
 

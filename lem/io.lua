@@ -19,6 +19,10 @@
 local utils  = require 'lem.utils'
 local io     = require 'lem.io.core'
 
+local compatshim = require 'lem.compatshim'
+local table_unpack = compatshim.table_unpack
+
+
 local type   = type
 local assert = assert
 local error  = error
@@ -162,11 +166,6 @@ do
 		end
 	end
 
-	local table_unpack = table.unpack
-	if table_unpack == nil then
-		table_unpack = unpack
-	end
-
 	function io.popen(prog, mode)
 		local attr = {
 			w={{fds={0},    kind='pipe', mode="w", name='stdin'}},
@@ -177,7 +176,7 @@ do
 						{fds={2},   kind='pipe', mode="r", name="stderr"}}
 		}
 
-		mode = attr[mode]
+		mode = attr[mode:gsub("b", "")]
 
 		local ret, err = io.spawnp(
 			{ "/bin/sh", "-c", prog },

@@ -242,6 +242,7 @@ runqueue_pop(EV_P_ struct ev_idle *w, int revents)
 	struct lem_runqueue_slot *slot;
 	lua_State *T;
 	int nargs;
+	int nresults;
 
 	(void)revents;
 
@@ -270,7 +271,9 @@ runqueue_pop(EV_P_ struct ev_idle *w, int revents)
 		rq.first &= rq.mask;
 
 		/* run Lua thread */
-#if LUA_VERSION_NUM >= 502
+#if LUA_VERSION_NUM >= 504
+		switch (lua_resume(T, NULL, nargs, &nresults)) {
+#elif LUA_VERSION_NUM >= 502
 		switch (lua_resume(T, NULL, nargs)) {
 #else
 		switch (lua_resume(T, nargs)) {
@@ -286,9 +289,11 @@ runqueue_pop(EV_P_ struct ev_idle *w, int revents)
 
 			case LUA_ERRERR: /* error running error handler */
 				lem_debug("thread errored while running error handler");
+#if LUA_VERSION_NUM < 504
 #if LUA_VERSION_NUM >= 502
 			case LUA_ERRGCMM:
 				lem_debug("error in __gc metamethod");
+#endif
 #endif
 			case LUA_ERRRUN: /* runtime error */
 				lem_debug("thread errored");
@@ -402,13 +407,30 @@ runqueue_wait_init(void)
 }
 #pragma GCC diagnostic pop
 
+void ((**process_quit_cb)(void)) = NULL;
+int process_quit_cb_count = 0;
+
+void on_lem_process_exit(void (*cb)(void)) {
+  process_quit_cb_count += 1;
+  process_quit_cb = realloc(process_quit_cb, sizeof process_quit_cb * process_quit_cb_count);
+  process_quit_cb[process_quit_cb_count-1] = cb;
+}
+
+void lem_process_exit() {
+  int i;
+  for(i=0;i<process_quit_cb_count;i++) {
+    (process_quit_cb)[i]();
+  }
+}
+
 int
 main(int argc, char *argv[])
 {
-
 	__lem_main_environ = environ;
 	__lem_main_argc = argc;
 	__lem_main_argv = argv;
+
+  atexit(lem_process_exit);
 
 	double max_cleanup_delay = 0;
 

@@ -18,8 +18,17 @@
 --
 
 local utils = require 'lem.utils'
-local io = require 'lem.io'
+io = require 'lem.io'
+local io = io
+local compatshim = require 'lem.compatshim'
+local signal = require 'lem.signal'
 local format = string.format
+
+signal.default_sigint_handler = function () os.exit(130) end
+signal.default_sigkill_handler = signal.default_sigint_handler
+
+signal.register('SIGINT', signal.default_sigint_handler)
+signal.register('SIGKILL', signal.default_sigkill_handler)
 
 local M = {}
 
@@ -232,10 +241,7 @@ M.lem_main = function ()
 
 		local parg = M.parse_arg(args, arg, 0)
 
-		local load = load
-		if _VERSION == 'Lua 5.1' then
-			load = loadstring
-		end
+		local load = compatshim.load
 
 		if parg.err then
 			parg.self_exe = arg[-1]

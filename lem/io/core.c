@@ -893,6 +893,18 @@ io_fdpoll(lua_State *T)
 	return lua_yield(T, 0);
 }
 
+static void remake_std_stream_blocking() {
+	int i;
+	for(i=0;i<3;i++) {
+		int opts = fcntl(i, F_GETFL);
+		if (opts<0) {
+			continue;
+		}
+		fcntl(i, F_SETFL, opts & (~O_NONBLOCK));
+	}
+}
+
+
 int
 luaopen_lem_io_core(lua_State *L)
 {
@@ -1142,6 +1154,9 @@ luaopen_lem_io_core(lua_State *L)
 
 	lua_pushcfunction(L, io_fdpoll);
 	lua_setfield(L, -2, "fdpoll");
+
+
+	on_lem_process_exit(remake_std_stream_blocking);
 
 	return 1;
 }

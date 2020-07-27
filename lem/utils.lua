@@ -18,6 +18,10 @@
 
 local lem_utils  = require 'lem.utils.core'
 
+local compatshim = require 'lem.compatshim'
+local table_unpack = compatshim.table_unpack
+
+
 local spawn = lem_utils.spawn
 local yield = lem_utils.yield
 local resume = lem_utils.resume
@@ -74,14 +78,6 @@ local function waittid(tid_list)
 end
 
 lem_utils.waittid = waittid
-
-local table_unpack
-
-if _VERSION == 'Lua 5.1' then
-	table_unpack = unpack
-else
-	table_unpack = table.unpack
-end
 
 local thread_queue = {
 	run = function(self)
