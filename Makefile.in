@@ -40,6 +40,8 @@ llibs = \
 	lem/http/server.lua \
 	lem/http/client.lua \
 	lem/queue.lua \
+	lem/compatshim.lua \
+	lem/httpservice.lua \
 	lem/hathaway.lua 
 
 clibs = \
