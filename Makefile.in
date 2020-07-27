@@ -26,6 +26,7 @@ objects      = @objects@
 objects_static      = @objects_static@
 
 llibs = \
+	lem/json.lua \
 	lem/cmd.lua \
 	lem/utils.lua \
 	lem/repl.lua \
