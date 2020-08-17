@@ -1,6 +1,6 @@
 AC_PREREQ([2.69])
-AC_INIT([[lem]], [[0.3]], [[esmil@mailme.dk]])
-builtin_lua_version='5.3'
+AC_INIT([[lem]], [[0.4]], [[esmil@mailme.dk]])
+builtin_lua_version='5.4'
 
 AC_LANG(C)
 AC_CONFIG_HEADERS([libev/ev-config.h:ev-config.h.in])
